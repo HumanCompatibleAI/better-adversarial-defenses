@@ -1,13 +1,13 @@
+import seaborn as sns
+import pandas as pd
+from matplotlib import pyplot as plt
+from copy import deepcopy
+from tqdm.notebook import tqdm
+import tensorflow as tf
 import numpy as np
 import os
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]="true"
-import tensorflow as tf
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 tf.compat.v1.enable_eager_execution()
-from tqdm.notebook import tqdm
-from copy import deepcopy
-from matplotlib import pyplot as plt
-import pandas as pd
-import seaborn as sns
 
 
 # Rock Paper Scissors actions
@@ -22,10 +22,10 @@ def rewards(a1, a2):
     if a1 == a2:
         return (0, 0)
     outcomes = {'RP': (-1, 1),
-     'RS': (1, -1),
-     'PS': (-1, 1),
-     
-    }
+                'RS': (1, -1),
+                'PS': (-1, 1),
+
+                }
     a1a2 = a1 + a2
     a2a1 = a1a2[::-1]
     if a1a2 in outcomes:
