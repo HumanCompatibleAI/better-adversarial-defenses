@@ -140,7 +140,7 @@ class Monitor(object):
         action_stats = {A: [0 for _ in range(n_act)] for A in self.agents}
         reward_stats = {A: {x: 0 for x in [-1, 0, 1]} for A in self.agents}
 
-        for (A1, A2, (xi, a1, a2, (r1, r2))) in m.data:
+        for (A1, A2, (xi, a1, a2, (r1, r2))) in self.data:
             action_stats[A1][a1] += 1
             action_stats[A2][a2] += 1
             reward_stats[A1][r1] += 1
