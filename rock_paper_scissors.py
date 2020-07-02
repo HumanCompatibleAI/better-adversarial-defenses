@@ -9,9 +9,11 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+
 # Rock Paper Scissors actions
 action_to_descr = 'RPS'
 n_act = len(action_to_descr)
+
 
 def rewards(a1, a2):
     """Rock paper scissors game."""
@@ -32,7 +34,8 @@ def rewards(a1, a2):
         return outcomes[a2a1][::-1]
     else:
         raise Exception("Unkown action pair %s" % a1a2)
-        
+
+
 def print_outcomes():
     for a1 in range(n_act):
         for a2 in range(n_act):

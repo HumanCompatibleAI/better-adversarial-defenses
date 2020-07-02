@@ -10,7 +10,9 @@ import pandas as pd
 import seaborn as sns
 from rock_paper_scissors import rewards, n_act, action_to_descr
 
+
 class Trainer(object):
+    """REINFORCE trainer for the agent."""
     def __init__(self, agent):
         self.agent = agent
         self.optimizer = tf.keras.optimizers.Adam(1e-2)
@@ -20,7 +22,7 @@ class Trainer(object):
         if not self.agent.train_data:
             return
 
-        #@tf.function 
+        # @tf.function 
         def get_reinforce_loss(data, model):
             loss = 0.0
             for (xi, a, r, opponent) in data:
@@ -37,8 +39,9 @@ class Trainer(object):
         grads = tape.gradient(loss, self.agent.model.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.agent.model.trainable_variables))
         self.agent.train_data = []
-        
-class RPCAgent(object):
+
+
+class RPSAgent(object):
     """Rock Paper Scissors agent."""
     def __init__(self, noise_dim, identity=None, train_every=10):
         self.noise_dim = noise_dim
@@ -81,7 +84,8 @@ class RPCAgent(object):
         return "<Agent id=%d wisdom=%d opponents=%d>" % (self.identity, len(self.data),
                                             len(opponents))
 
-class RPCEnv(object):
+
+class RPSEnv(object):
     """Rock paper scissors environment."""
     def __init__(self, noise_dim=10):
         self.noise_dim = noise_dim
@@ -95,7 +99,8 @@ class RPCEnv(object):
         return np.random.randn(self.noise_dim)
     def __repr__(self):
         return "<Env noise_dim=%d>" % self.noise_dim
-    
+
+
 class Universe(object):
     """Interaction between 2 agents in the environment."""
     def __init__(self, environment, agents, monitor, invert_reward_2=False):
@@ -124,7 +129,8 @@ class Universe(object):
     
     def __repr__(self):
         return "<Universe\n  Environment=%s\n  Agents=%s\n>" % (self.environment, self.agents)
-    
+
+
 class Monitor(object):
     """Tracks agent's performance."""
     def __init__(self, agents):
