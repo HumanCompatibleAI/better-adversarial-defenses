@@ -1,6 +1,6 @@
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 import rock_paper_scissors as rps
-from gym.spaces import Discrete
+from gym.spaces import Discrete, Box
 from ray.rllib.examples.env.rock_paper_scissors import RockPaperScissors
 import numpy as np
 
@@ -12,6 +12,8 @@ class RPSNoise(RockPaperScissors):
         self.noise_dim = config.get("noise_dim", 4)        
         
         super(RPSNoise, self).__init__(config)
+        self.observation_space = Box(np.full(self.noise_dim, -np.inf),
+                                     np.full(self.noise_dim, np.inf))
     
     def _sample_noise(self):
         return np.random.randn(self.noise_dim)
