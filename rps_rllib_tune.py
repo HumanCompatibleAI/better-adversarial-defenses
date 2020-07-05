@@ -108,23 +108,24 @@ def build_trainer(restore_state=None, train_policies=None, config=None):
         trainer.restore_from_object(restore_state)
     return trainer
 
-def train(trainer, stop_iters):
+def train(trainer, stop_iters, do_track=True):
     """Train the agents and return the state of the trainer."""
     for _ in range(stop_iters):
         results = trainer.train()
         print(pretty_print(results))
-        track.log(**results)
+        if do_track:
+            track.log(**results)
     o = trainer.save_to_object()
     return o
 
 
-def train_one(config, restore_state=None):
+def train_one(config, restore_state=None, do_track=True):
     print(config)
     rl_config = build_trainer_config(restore_state=restore_state,
                               train_policies=config['train_policies'],
                               config=config)
     trainer = build_trainer(restore_state=None, config=rl_config)
-    train(trainer, config['train_steps'])
+    train(trainer, config['train_steps'], do_track=do_track)
     
 
 node_sizes = [math.ceil(t) for t in np.logspace(0, 3, 10)]
