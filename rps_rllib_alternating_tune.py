@@ -156,7 +156,7 @@ def train_one(config, restore_state=None, do_track=True):
     
     
 
-burst_sizes = list(np.arange(60))
+burst_sizes = list(np.arange(35))
 
 # best hypers from rps_rllib_tune.py and rps_rllib-analysis.ipynb
 config = {
@@ -164,7 +164,7 @@ config = {
     'lstm_units':                       22,
     'num_workers':                      10,
     'train_batch_size':                 4096,
-    'train_steps':                      100,
+    'train_steps':                      40,
 }
 
 config['burst_size'] = tune.grid_search(burst_sizes)
@@ -180,4 +180,5 @@ if __name__ == "__main__":
         verbose=1,
         #num_samples=100,
         name="bursts",
+        num_samples=10,
     )

@@ -132,6 +132,8 @@ node_sizes = [math.ceil(t) for t in np.logspace(0, 3, 10)]
 batch_sizes = [128, 256, 512, 1024, 2048, 4096]
 print(node_sizes)
 
+
+# try changing learning rate
 config = {'fc_units': tune.choice(node_sizes),
           'lstm_units': tune.choice(node_sizes),
           'train_batch_size': tune.choice(batch_sizes)}
