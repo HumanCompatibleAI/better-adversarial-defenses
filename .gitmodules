@@ -1,0 +1,3 @@
+[submodule "adversarial-policies"]
+	path = adversarial-policies
+	url = git@github.com:HumanCompatibleAI/adversarial-policies.git
