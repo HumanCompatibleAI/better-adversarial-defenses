@@ -1,3 +1,6 @@
+MUJOCO_LOG.TXT
+*.swp
+render*.png
 .ipynb_checkpoints
 # Byte-compiled / optimized / DLL files
 __pycache__/
