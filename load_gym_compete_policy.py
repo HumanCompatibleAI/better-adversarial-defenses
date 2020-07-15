@@ -1,4 +1,3 @@
-from aprl.envs.gym_compete import load_zoo_agent
 import gym
 import gym_compete
 import numpy as np
@@ -155,6 +154,7 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_s
     act_dim = env.action_space[0].shape[0]
     env_name_2 = env_name.split('/')[1]
 
+    from aprl.envs.gym_compete import load_zoo_agent
     policy = load_zoo_agent('1', env, env_name, agent_id, None)
     mlp_policy = policy.policy_obj
 
