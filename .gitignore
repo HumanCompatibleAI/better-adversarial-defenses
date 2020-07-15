@@ -1,4 +1,5 @@
 MUJOCO_LOG.TXT
+*.mp4
 *.swp
 render*.png
 .ipynb_checkpoints
