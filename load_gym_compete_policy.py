@@ -57,7 +57,7 @@ def get_variables(policy_unpickle, variables_spec):
         s = variables[n].size
         variables[n] = policy_unpickle[idx:idx+s].reshape(variables[n].shape)
         idx += s
-    assert idx == len(policy_unpickle), "Wrong variables_spec"
+    assert idx == len(policy_unpickle), "Wrong variables_spec expected=%d got=%d" % (idx, len(policy_unpickle))
     
     return variables
 
@@ -77,7 +77,10 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
     act_dim = env.action_space[0].shape[0]
     env_name_2 = env_name.split('/')[1]
     
-    policy_unpickle = pickle.load(open(pickle_path + env_name_2 + '/agent%d_parameters-v%d.pkl' % (agent_id + 1, version), 'rb'))
+    if isinstance(agent_id, int):
+        agent_id += 1
+    
+    policy_unpickle = pickle.load(open(pickle_path + env_name_2 + '/agent%s_parameters-v%d.pkl' % (str(agent_id), version), 'rb'))
     if variables_spec is None:
         variables_spec = get_variables_spec(obs_dim=obs_dim, hid_dim=hid_dim, act_dim=act_dim)
     variables = get_variables(variables_spec=variables_spec, policy_unpickle=policy_unpickle)
@@ -87,8 +90,8 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
     def build_policy():
         model_policy_inp = keras.Input(shape=(obs_dim,))
         model_policy_y = ObservationPreprocessingLayer(*normalizer_mean_std(variables, 'obs'), 5)(model_policy_inp)
-        model_policy_y = keras.layers.Dense(64, input_shape=(obs_dim,), activation='tanh', use_bias=True)(model_policy_y)
-        model_policy_y = keras.layers.Dense(64, activation='tanh', use_bias=True)(model_policy_y)
+        model_policy_y = keras.layers.Dense(hid_dim, input_shape=(obs_dim,), activation='tanh', use_bias=True)(model_policy_y)
+        model_policy_y = keras.layers.Dense(hid_dim, activation='tanh', use_bias=True)(model_policy_y)
         model_policy_mean = keras.layers.Dense(act_dim, activation=None, use_bias=True, name='mean')(model_policy_y)
         model_policy_mean = keras.layers.Reshape((act_dim, 1), name='reshape_mean')(model_policy_mean)
 
@@ -100,7 +103,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
         model_policy_ = DiagonalNormalSamplingLayer()(model_policy_mean_std_)
         model_policy = keras.Model(inputs=model_policy_inp, outputs=model_policy_)
 
-        model_policy(np.zeros((1, 380), dtype=np.float32))
+        model_policy(np.zeros((1, obs_dim), dtype=np.float32))
         model_policy.summary()
         return model_policy_mean_std, model_policy
     
@@ -109,13 +112,13 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
     def build_value():
         model_value = keras.Sequential([
             ObservationPreprocessingLayer(*normalizer_mean_std(variables, 'obs'), 5),
-            keras.layers.Dense(64, input_shape=(380,), activation='tanh', use_bias=True, name='h1'),
-            keras.layers.Dense(64, activation='tanh', use_bias=True, name='h2'),
+            keras.layers.Dense(hid_dim, input_shape=(obs_dim,), activation='tanh', use_bias=True, name='h1'),
+            keras.layers.Dense(hid_dim, activation='tanh', use_bias=True, name='h2'),
             keras.layers.Dense(1, activation=None, use_bias=True, name='value'),
             ValuePostprocessingLayer(*normalizer_mean_std(variables, 'ret'))
         ])
 
-        model_value(np.zeros((1, 380), dtype=np.float32))
+        model_value(np.zeros((1, obs_dim), dtype=np.float32))
         model_value.summary()
         return model_value
     
