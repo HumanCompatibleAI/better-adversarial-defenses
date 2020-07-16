@@ -31,6 +31,8 @@ class ObservationPreprocessingLayer(LayerWithConstantParameters):
     
     def __init__(self, obs_mean, obs_std, clip_value):
         super(ObservationPreprocessingLayer, self).__init__()
+        print('obsmean', type(obs_mean), obs_mean.shape)
+        print('tf eager', tf.executing_eagerly())
         self.mean = self.add_parameter(name='mean', value=obs_mean)
         self.std = self.add_parameter(name='std', value=obs_std)
         self.clip = self.add_parameter(name='clip', value=clip_value)
@@ -64,9 +66,9 @@ class DiagonalNormalSamplingLayer(tf.keras.layers.Layer):
         assert len(inputs.shape) == 3, "Expected 3d tensor got shape %s" % inputs.shape
         assert inputs.shape[2] == 2, "Expect mean/std, got shape %s" % inputs.shape
         means = inputs[:, :, 0]
-        stds = inputs[:, :, 1]
+        logstds = inputs[:, :, 1]
         out = tf.random.normal(shape=tf.shape(inputs)[:2],
-                               mean=means, stddev=stds)
+                               mean=means, stddev=tf.exp(logstds))
         return out
     
 class UnconnectedVariableLayer(tf.keras.layers.Layer):

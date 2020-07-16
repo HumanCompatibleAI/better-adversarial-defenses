@@ -86,6 +86,8 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
 
     n_saved_weights = policy_unpickle.shape[0]
 
+    print('tf eager', tf.executing_eagerly())
+    
     def build_policy():
         model_policy_inp = keras.Input(shape=(obs_dim,))
         model_policy_y = ObservationPreprocessingLayer(*normalizer_mean_std(variables, 'obs'), 5)(model_policy_inp)
@@ -97,16 +99,19 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
         model_policy_std = UnconnectedVariableLayer(name='std', shape=(act_dim,))(model_policy_y)
         model_policy_std = keras.layers.Reshape((act_dim, 1), name='reshape_std')(model_policy_std)
         model_policy_mean_std_ = keras.layers.Concatenate(axis=2)([model_policy_mean, model_policy_std])
+        model_policy_mean_std_flat_ = tf.keras.layers.Flatten()(model_policy_mean_std_)
         model_policy_mean_std = keras.Model(inputs=model_policy_inp, outputs=model_policy_mean_std_)
+        model_policy_mean_std_flat = keras.Model(inputs=model_policy_inp, outputs=model_policy_mean_std_flat_)
 
+        
         model_policy_ = DiagonalNormalSamplingLayer()(model_policy_mean_std_)
         model_policy = keras.Model(inputs=model_policy_inp, outputs=model_policy_)
 
         model_policy(np.zeros((1, obs_dim), dtype=np.float32))
         model_policy.summary()
-        return model_policy_mean_std, model_policy
+        return model_policy_mean_std, model_policy_mean_std_flat, model_policy
     
-    results['policy_mean_std'], results['policy'] = build_policy()
+    results['policy_mean_logstd'], results['policy_mean_logstd_flat'], results['policy'] = build_policy()
     
     def build_value():
         model_value = keras.Sequential([
@@ -137,12 +142,12 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
                 [variables[net_name + layer_name + '/' + p + ':0']
                  for p in ['w', 'b']])
 
-    # setting std value
-    results['policy'].layers[-5].set_weights([np.exp(variables['logstd:0'])])
+    # setting LOGstd value
+    results['policy'].layers[-5].set_weights([variables['logstd:0']])
     
     return results
 
-def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_std,
+def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_logstd,
                       n_test_obs=1000, max_scale=100, eps=1e-10, verbose=True):
     """Test new vs old networks."""
     results = {}
@@ -187,7 +192,7 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_s
     
     results['value'] = show_error(value_new, value_old, verbose=verbose)
 
-    p_new = model_policy_mean_std.predict(obs)
+    p_new = model_policy_mean_logstd.predict(obs)
     p_old = np.array([mlp_policy.proba_step(np.array([o])) for o in obs])
     p_old = p_old[:, :, 0, :]
     p_old = np.swapaxes(p_old, 1, 2)
@@ -196,7 +201,7 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_s
     p_new_mean = p_new[:, :, 0]
     results['policy_mean'] = show_error(p_new_mean, p_old_mean, verbose=verbose)
 
-    p_old_var = p_old[:, :, 1]
+    p_old_var = np.exp(p_old[:, :, 1])
     p_new_var = p_new[:, :, 1]
 
     results['policy_std'] = show_error(p_new_var, p_old_var, verbose=verbose)
