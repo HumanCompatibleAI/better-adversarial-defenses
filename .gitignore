@@ -2,6 +2,7 @@ MUJOCO_LOG.TXT
 *.mp4
 *.swp
 render*.png
+video-*
 .ipynb_checkpoints
 # Byte-compiled / optimized / DLL files
 __pycache__/
