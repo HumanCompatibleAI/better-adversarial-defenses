@@ -99,7 +99,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
         model_policy_std = UnconnectedVariableLayer(name='std', shape=(act_dim,))(model_policy_y)
         model_policy_std = keras.layers.Reshape((act_dim, 1), name='reshape_std')(model_policy_std)
         model_policy_mean_std_ = keras.layers.Concatenate(axis=2)([model_policy_mean, model_policy_std])
-        model_policy_mean_std_flat_ = tf.keras.layers.Flatten()(model_policy_mean_std_)
+        model_policy_mean_std_flat_ = tf.keras.layers.Flatten(data_format='channels_first')(model_policy_mean_std_)
         model_policy_mean_std = keras.Model(inputs=model_policy_inp, outputs=model_policy_mean_std_)
         model_policy_mean_std_flat = keras.Model(inputs=model_policy_inp, outputs=model_policy_mean_std_flat_)
 
