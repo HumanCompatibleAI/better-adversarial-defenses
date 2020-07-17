@@ -136,6 +136,9 @@ def gym_compete_env_with_video(env_name, directory=None):
 
     config = default_score_config()
     env = gym.make(env_name)
+    
+    #print(config)
+    #config['video_params']['annotation_params']['font'] = '/home/sergei/.fonts/times'
 
     env = AnnotatedGymCompete(env=env, env_name=env_name, agent_a_type=config['agent_a_type'], agent_b_type=config['agent_b_type'],
                         agent_a_path=config['agent_a_path'], agent_b_path=config['agent_b_path'],
