@@ -38,6 +38,8 @@ class ObservationPreprocessingLayer(LayerWithConstantParameters):
         self.clip = self.add_parameter(name='clip', value=clip_value)
 
     def call(self, inputs):
+        #print(inputs, self.mean, self.std, self.clip)
+        inputs = tf.cast(inputs, tf.float32)
         return tf.clip_by_value((inputs - self.mean) / self.std, -self.clip, self.clip)
     
 class ValuePostprocessingLayer(LayerWithConstantParameters):

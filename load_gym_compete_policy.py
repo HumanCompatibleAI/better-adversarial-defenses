@@ -10,7 +10,7 @@ from layers import ObservationPreprocessingLayer, UnconnectedVariableLayer
 from layers import DiagonalNormalSamplingLayer, ValuePostprocessingLayer
 
 # path with .pkl agent files
-pickle_path = 'multiagent-competition/gym_compete/agent_zoo/'
+pickle_path = '/scratch/sergei/better-adversarial-defenses/multiagent-competition/gym_compete/agent_zoo/'
 
 # hidden dimension of mlp
 hid_dim = 64

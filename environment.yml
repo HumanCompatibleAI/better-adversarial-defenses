@@ -193,5 +193,4 @@ dependencies:
     - widgetsnbextension==3.5.1
     - wrapt==1.12.1
     - yarl==1.4.2
-prefix: /scratch/sergei/miniconda3
-
+prefix: /scratch/sergei/miniconda3/chai
