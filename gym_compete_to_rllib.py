@@ -5,6 +5,7 @@ import datetime, uuid
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 import gym
 import numpy as np
+import tensorflow as tf
 from ray.rllib.models import ModelCatalog
 
 
@@ -41,18 +42,22 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         observations = self._env.reset()
         return self.pack_array(observations)
 
-    def step(self, action_dict):
+    def step(self, action_dict, reward_scaler=1./100):
         #print(action_dict)
         default_action = np.zeros(self.observation_space.shape)
         a1a2 = self.unpack_dict(action_dict, default_action)
         o1o2, r1r2, done, i1i2 = self._env.step(a1a2)
         obs = self.pack_array(o1o2)
-        rew = self.pack_array(r1r2)
+        rew = self.pack_array(np.array(r1r2) * reward_scaler)
         infos = self.pack_array([i1i2[0], i1i2[1]])
         dones = self.pack_array([i1i2[0]['agent_done'],
                                  i1i2[1]['agent_done']])
         #dones['__all__'] = done
-        dones['__all__'] = done or all([dones[p] for p in self.player_names])
+        done = done #and all([dones[p] for p in self.player_names])
+        
+        # done only if everyone is done
+        dones = {p: done for p in dones.keys()}
+        dones['__all__'] = done
         
         # removing observations for already finished agents
         for p in self.player_names:
@@ -86,8 +91,8 @@ class KerasModelModel(TFModelV2):
         
     def forward(self, input_dict, state, seq_lens):
         obs = input_dict["obs"]
-        model_out = self.policy_net(obs)
-        self._value_out = self.value_net(obs)
+        model_out = tf.cast(self.policy_net(obs), tf.float32)
+        self._value_out = tf.cast(self.value_net(obs), tf.float32)
         #if obs.shape[0] == 1:
         self._value_out = self._value_out[0]
         return model_out, state
