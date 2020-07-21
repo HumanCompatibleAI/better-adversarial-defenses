@@ -1,16 +1,19 @@
 from youshallnotpass_rllib_adversarial import build_trainer, build_trainer_config, config, created_envs
 import pickle, json, codecs
 import argparse
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='Produce a video from a checkpoint.')
-parser.add_argument('checkpoint', type=str,
+parser.add_argument('--checkpoint', type=str,
                     help='Checkpoint json file')
+parser.add_argument('--steps', type=int, default=10,
+                    help='Evaluation steps')
 args = parser.parse_args()
 
 
 config['train_policies'] = []
-config['train_steps'] = 5
-config['train_batch_size'] = 4096
+config['train_steps'] = args.steps
+config['train_batch_size'] = 256
 
 restore_state = None
 env_config = {'with_video': True}
@@ -22,7 +25,7 @@ trainer = build_trainer(restore_state=None, config=rl_config)
 ck = json.load(open(args.checkpoint, 'r'))
 w = codecs.decode(ck['weights'].encode(), 'base64')
 trainer.set_weights(pickle.loads(w))
-for _ in range(config['train_steps']):
-    trainer.train()
+for _ in tqdm(range(config['train_steps'])):
+    print(trainer.train()['hist_stats']['policy_player_1_reward'])
 print("Your video is in")
 print(created_envs[-1].video_recorder.path)

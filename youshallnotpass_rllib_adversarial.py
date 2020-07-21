@@ -74,6 +74,14 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None, n
                     },
             
             "framework": "tfe",
+            
+             'tf_session_args': {'intra_op_parallelism_threads': 5,
+  'inter_op_parallelism_threads': 5,
+  'gpu_options': {'allow_growth': True},
+  'log_device_placement': False,
+  'device_count': {'CPU': 5},
+  'allow_soft_placement': True},
+
         })
         
         agent_config_from_scratch = (PPOTFPolicy, obs_space, act_space, {
@@ -127,6 +135,7 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None, n
             "policy_mapping_fn": select_policy,
         },
         "framework": "tfe",
+        "lr": 3e-4
         #"train_batch_size": 512
         #"num_cpus_per_worker": 2
     }
@@ -193,7 +202,7 @@ def train_one(config, checkpoint=None):
 
         
 # try changing learning rate
-config = {'train_batch_size': 4096}
+config = {'train_batch_size': 8192}
 
 config['train_steps'] = 10000
 

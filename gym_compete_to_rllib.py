@@ -55,6 +55,8 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         #dones['__all__'] = done
         done = done #and all([dones[p] for p in self.player_names])
         
+        
+        
         # done only if everyone is done
         dones = {p: done for p in dones.keys()}
         dones['__all__'] = done
@@ -69,6 +71,11 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         for p in self.player_names:
             self.dones[p] = dones[p]
         #print('dones', dones)
+        
+        # for adversarial training
+        if 'player_1' in rew:
+            rew['player_1'] = infos['player_1']['reward_remaining'] * reward_scaler
+        
         return obs, rew, dones, infos
     
     @property
