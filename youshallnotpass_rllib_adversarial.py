@@ -33,24 +33,34 @@ import time
 
 from ray.tune.schedulers import ASHAScheduler
 
-def ray_init():
+from sacred import Experiment
+from sacred.observers import MongoObserver
+
+ex = Experiment("youshallnotpass_learned_adversary_vs_zoo", interactive=True)
+#ex.observers.append(MongoObserver(url='127.0.0.1:27017',
+#                                      db_name='better_adversarial_defenses'))
+
+
+@ex.capture
+def log_dict(_run, d, prefix='', counter=0):
+    """Ray dictionary results to sacred."""
+    for k, v in d.items():
+        if isinstance(v, int) or isinstance(v, float):
+            _run.log_scalar(k, v, counter)
+        elif isinstance(v, dict):
+            log_dict(d=d, prefix=k + '.', counter=counter)
+
+@ex.capture
+def ray_init(num_cpus):
+    """Initialize ray."""
     ray.shutdown()
-    return ray.init(num_cpus=60, # ignore_reinit_error=True
-                    temp_dir='/scratch/sergei/tmp') # Skip or set to ignore if already called
+    return ray.init(num_cpus=num_cpus, # ignore_reinit_error=True
+                    temp_dir='/scratch/sergei/tmp'
     time.sleep(5)
 
-ray_init()
-tf.keras.backend.set_floatx('float32')
 
-def create_env_sleep(*args, **kwargs):
-    time.sleep(np.random.rand() * 20)
-    return create_env(*args, **kwargs)
-
-
-env_cls = create_env_sleep
-env_config = {'with_video': False}#True}
-
-def build_trainer_config(restore_state=None, train_policies=None, config=None, num_workers=16, num_workers_tf=16, env_config=env_config):
+@ex.capture
+def build_trainer_config(restore_state=None, train_policies, config, num_workers, num_workers_tf, env_config):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -113,11 +123,8 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None, n
     config = {
         "env": env_name_rllib,
         "env_config": env_config,
-    #    "gamma": 0.9,
-      "num_workers": num_workers,
-      #"num_envs_per_worker": num_workers,
-    #   "rollout_fragment_length": 10,
-       "train_batch_size": int(config['train_batch_size']),
+        "num_workers": num_workers,
+        "train_batch_size": int(config['train_batch_size']),
         "multiagent": {
             "policies_to_train": train_policies,
             "policies": policies,
@@ -129,7 +136,6 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None, n
         "gamma": 0.99,
         "sgd_minibatch_size": int(config.get("sgd_minibatch_size", 128)),
         "num_sgd_iter": int(config.get("num_sgd_iter", 30)),
-        #"num_cpus_for_driver": num_workers
         
         'tf_session_args': {'intra_op_parallelism_threads': num_workers_tf,
           'inter_op_parallelism_threads': num_workers_tf,
@@ -140,15 +146,13 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None, n
         },
         
         "local_tf_session_args": {
-            # Allow a higher level of parallelism by default, but not unlimited
-            # since that can cause crashes with many concurrent drivers.
             "intra_op_parallelism_threads": num_workers_tf,
             "inter_op_parallelism_threads": num_workers_tf,
         },
     }
     return config
 
-
+@ex.capture
 def build_trainer(restore_state=None, train_policies=None, config=None):
     """Create a RPS trainer for 2 agents, restore state, and only train specific policies."""
     
@@ -156,25 +160,14 @@ def build_trainer(restore_state=None, train_policies=None, config=None):
     print(config)
     cls = PPOTrainer
     trainer = cls(config=config)
-    print("Created trainer")
     env = trainer.workers.local_worker().env
     if restore_state is not None:
         trainer.restore_from_object(restore_state)
     return trainer
 
-def train_iteration(trainer, stop_iters, do_track=True):
-    """Train the agents and return the state of the trainer."""
-    for _ in range(stop_iters):
-        results = trainer.train()
-        print(pretty_print(results))
-        if do_track:
-            track.log(**results)
-    o = trainer.save_to_object()
-    return o
 
-trainer = None
-
-def train_one(config, checkpoint=None):
+@ex.capture
+def train_one(_run, config, checkpoint=None):
     start = 0
     if checkpoint:
         with open(checkpoint) as f:
@@ -189,13 +182,10 @@ def train_one(config, checkpoint=None):
                               config=config)
     
     print("Building trainer...")
-    global trainer
     trainer = build_trainer(restore_state=None, config=rl_config)
     
     print("Starting iterations...")
     
-    #time.sleep(20)
-
     for step in range(start, config['train_steps']):
         results = trainer.train()
         print("Iteration %d done" % step)
@@ -203,6 +193,7 @@ def train_one(config, checkpoint=None):
             track.log(**results)
         else:
             print(pretty_print(results))
+        log_dict(d=results, counter=step)
 
 
         if step % 10 == 0:
@@ -218,32 +209,40 @@ def train_one(config, checkpoint=None):
             tune.save_checkpoint(path)
             print("Checkpoint %d done" % step)
 
+@ex.config
+def config():
+    env_cls = create_env
+    env_config = {'with_video': False}
         
-# try changing learning rate
-config = {}
+    # try changing learning rate
+    config = {}
 
-config['train_batch_size'] = 65536#tune.loguniform(2**11, 2**16, 2)
-config['lr'] = tune.loguniform(1e-5, 1e-2)
-config['sgd_minibatch_size'] = 8192#tune.loguniform(512, 65536, 2)
-config['num_sgd_iter'] = 30#tune.uniform(1, 30)
-config['train_steps'] = 10000
+    config['train_batch_size'] = 65536#tune.loguniform(2**11, 2**16, 2)
+    config['lr'] = tune.loguniform(1e-5, 1e-2)
+    config['sgd_minibatch_size'] = 8192#tune.loguniform(512, 65536, 2)
+    config['num_sgd_iter'] = 30#tune.uniform(1, 30)
+    config['train_steps'] = 10000
 
-# ['humanoid_blocker', 'humanoid'],
-config['train_policies'] = ['player_1']
+    # ['humanoid_blocker', 'humanoid'],
+    config['train_policies'] = ['player_1']
 
-#config['num_workers'] = 40
+    #config['num_workers'] = 40
 
 
-custom_scheduler = ASHAScheduler(
-    metric='tune/policy_reward_mean/player_1',
-    mode="max",
-    grace_period=5,
-)
+    custom_scheduler = ASHAScheduler(
+        metric='tune/policy_reward_mean/player_1',
+        mode="max",
+        grace_period=5,
+    )
+    num_workers = 16
+    num_workers_tf = 16
+    num_cpus=60
 
-#def train_one_mock(config, checkpoint=None):
-#    time.sleep(5)
 
-if __name__ == '__main__':
+@ex.automain
+def main(_run, config, custom_scheduler):
+    ray_init()
+    tf.keras.backend.set_floatx('float32')
     analysis = tune.run(
             train_one, 
             config=config, 
@@ -251,7 +250,7 @@ if __name__ == '__main__':
             name="adversarial_tune",
             num_samples=1,
             checkpoint_freq=10,
-            #scheduler=custom_scheduler,
+            scheduler=custom_scheduler,
             resources_per_trial={"cpu": 17},
             queue_trials=True,
         )
