@@ -86,7 +86,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
 
     n_saved_weights = policy_unpickle.shape[0]
 
-    print('tf eager', tf.executing_eagerly())
+    #print('tf eager', tf.executing_eagerly())
     
     def build_policy():
         model_policy_inp = keras.Input(shape=(obs_dim,))
@@ -108,7 +108,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
         model_policy = keras.Model(inputs=model_policy_inp, outputs=model_policy_)
 
         model_policy(np.zeros((1, obs_dim), dtype=np.float32))
-        model_policy.summary()
+        #model_policy.summary()
         return model_policy_mean_std, model_policy_mean_std_flat, model_policy
     
     results['policy_mean_logstd'], results['policy_mean_logstd_flat'], results['policy'] = build_policy()
@@ -123,14 +123,14 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
         ])
 
         model_value(np.zeros((1, obs_dim), dtype=np.float32))
-        model_value.summary()
+        #model_value.summary()
         return model_value
     
     results['value'] = build_value()
     
     # counting twice
     model_weights = results['policy'].count_params() + results['value'].count_params() - results['value'].layers[0].count_params()
-    print("Weights delta", n_saved_weights - model_weights)
+    #print("Weights delta", n_saved_weights - model_weights)
     
     layer_names = ['1', '2', 'final']
     # name in old vars, new model, layer offset

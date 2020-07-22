@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 import numpy as np
@@ -32,28 +29,28 @@ from gym_compete_to_rllib import created_envs, env_name, create_env, env_name_rl
 import os
 os.environ['DISPLAY'] = ':0'
 import codecs
+import time
+
+from ray.tune.schedulers import ASHAScheduler
 
 def ray_init():
     ray.shutdown()
-    return ray.init(ignore_reinit_error=True,
+    return ray.init(num_cpus=60, # ignore_reinit_error=True
                     temp_dir='/scratch/sergei/tmp') # Skip or set to ignore if already called
+    time.sleep(5)
 
 ray_init()
-
-
-# In[ ]:
-
-
 tf.keras.backend.set_floatx('float32')
 
+def create_env_sleep(*args, **kwargs):
+    time.sleep(np.random.rand() * 20)
+    return create_env(*args, **kwargs)
 
-# In[ ]:
 
-
-env_cls = create_env
+env_cls = create_env_sleep
 env_config = {'with_video': False}#True}
 
-def build_trainer_config(restore_state=None, train_policies=None, config=None, num_workers=8, env_config=env_config):
+def build_trainer_config(restore_state=None, train_policies=None, config=None, num_workers=16, num_workers_tf=16, env_config=env_config):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -74,14 +71,6 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None, n
                     },
             
             "framework": "tfe",
-            
-             'tf_session_args': {'intra_op_parallelism_threads': 5,
-  'inter_op_parallelism_threads': 5,
-  'gpu_options': {'allow_growth': True},
-  'log_device_placement': False,
-  'device_count': {'CPU': 5},
-  'allow_soft_placement': True},
-
         })
         
         agent_config_from_scratch = (PPOTFPolicy, obs_space, act_space, {
@@ -126,18 +115,36 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None, n
         "env_config": env_config,
     #    "gamma": 0.9,
       "num_workers": num_workers,
-    #  "num_envs_per_worker": 10,
+      #"num_envs_per_worker": num_workers,
     #   "rollout_fragment_length": 10,
-       "train_batch_size": config['train_batch_size'],
+       "train_batch_size": int(config['train_batch_size']),
         "multiagent": {
             "policies_to_train": train_policies,
             "policies": policies,
             "policy_mapping_fn": select_policy,
         },
         "framework": "tfe",
-        "lr": 3e-4
-        #"train_batch_size": 512
-        #"num_cpus_per_worker": 2
+        "lr": config.get('lr', 1e-4),
+        "vf_loss_coeff": 0.5,
+        "gamma": 0.99,
+        "sgd_minibatch_size": int(config.get("sgd_minibatch_size", 128)),
+        "num_sgd_iter": int(config.get("num_sgd_iter", 30)),
+        #"num_cpus_for_driver": num_workers
+        
+        'tf_session_args': {'intra_op_parallelism_threads': num_workers_tf,
+          'inter_op_parallelism_threads': num_workers_tf,
+          'gpu_options': {'allow_growth': True},
+          'log_device_placement': True,
+          'device_count': {'CPU': num_workers_tf},
+          'allow_soft_placement': True
+        },
+        
+        "local_tf_session_args": {
+            # Allow a higher level of parallelism by default, but not unlimited
+            # since that can cause crashes with many concurrent drivers.
+            "intra_op_parallelism_threads": num_workers_tf,
+            "inter_op_parallelism_threads": num_workers_tf,
+        },
     }
     return config
 
@@ -149,6 +156,7 @@ def build_trainer(restore_state=None, train_policies=None, config=None):
     print(config)
     cls = PPOTrainer
     trainer = cls(config=config)
+    print("Created trainer")
     env = trainer.workers.local_worker().env
     if restore_state is not None:
         trainer.restore_from_object(restore_state)
@@ -173,19 +181,28 @@ def train_one(config, checkpoint=None):
             state = json.loads(f.read())
             start = state["step"] + 1
             
+    print("Building trainer config...")
     restore_state = None
     do_track = True
     rl_config = build_trainer_config(restore_state=restore_state,
                               train_policies=config['train_policies'],
                               config=config)
+    
+    print("Building trainer...")
     global trainer
     trainer = build_trainer(restore_state=None, config=rl_config)
+    
+    print("Starting iterations...")
+    
+    #time.sleep(20)
 
     for step in range(start, config['train_steps']):
         results = trainer.train()
-        print(pretty_print(results))
+        print("Iteration %d done" % step)
         if do_track:
             track.log(**results)
+        else:
+            print(pretty_print(results))
 
 
         if step % 10 == 0:
@@ -199,35 +216,42 @@ def train_one(config, checkpoint=None):
 
                 f.write(json.dumps({"step": start, "weights": wps}))
             tune.save_checkpoint(path)
+            print("Checkpoint %d done" % step)
 
         
 # try changing learning rate
-config = {'train_batch_size': 8192}
+config = {}
 
+config['train_batch_size'] = 65536#tune.loguniform(2**11, 2**16, 2)
+config['lr'] = tune.loguniform(1e-5, 1e-2)
+config['sgd_minibatch_size'] = 8192#tune.loguniform(512, 65536, 2)
+config['num_sgd_iter'] = 30#tune.uniform(1, 30)
 config['train_steps'] = 10000
 
 # ['humanoid_blocker', 'humanoid'],
 config['train_policies'] = ['player_1']
-#config['num_workers'] = 8
+
+#config['num_workers'] = 40
 
 
-# In[ ]:
+custom_scheduler = ASHAScheduler(
+    metric='tune/policy_reward_mean/player_1',
+    mode="max",
+    grace_period=5,
+)
 
+#def train_one_mock(config, checkpoint=None):
+#    time.sleep(5)
 
-#train_one(config, do_track=False)
 if __name__ == '__main__':
     analysis = tune.run(
             train_one, 
             config=config, 
-            verbose=1,
-            #num_samples=100,
-            name="adversarial",
-            num_samples=10,
-            checkpoint_freq=10 
+            verbose=2,
+            name="adversarial_tune",
+            num_samples=1,
+            checkpoint_freq=10,
+            #scheduler=custom_scheduler,
+            resources_per_trial={"cpu": 17},
+            queue_trials=True,
         )
-
-
-    # In[ ]:
-
-
-    [x.close() for x in created_envs]

@@ -31,8 +31,8 @@ class ObservationPreprocessingLayer(LayerWithConstantParameters):
     
     def __init__(self, obs_mean, obs_std, clip_value):
         super(ObservationPreprocessingLayer, self).__init__()
-        print('obsmean', type(obs_mean), obs_mean.shape)
-        print('tf eager', tf.executing_eagerly())
+        #print('obsmean', type(obs_mean), obs_mean.shape)
+        #print('tf eager', tf.executing_eagerly())
         self.mean = self.add_parameter(name='mean', value=obs_mean)
         self.std = self.add_parameter(name='std', value=obs_std)
         self.clip = self.add_parameter(name='clip', value=clip_value)

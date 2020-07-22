@@ -13,7 +13,9 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
     """Takes gym_compete env and makes a multi-agent RLLib env."""
 
     def __init__(self, env_cls, player_names=None):
+        print("Creating env...")
         env = env_cls()
+        print("Created env")
         super(GymCompeteToRLLibAdapter, self).__init__()
         #print(env.action_space)
         #print(env.observation_space)
