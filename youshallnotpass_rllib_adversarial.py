@@ -19,7 +19,6 @@ import json, pickle
 
 import ray
 from ray import tune
-from ray.tune import track
 
 import math
 import gym
@@ -36,13 +35,15 @@ from ray.tune.schedulers import ASHAScheduler
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment("youshallnotpass_learned_adversary_vs_zoo", interactive=True)
+#ex = Experiment("youshallnotpass_learned_adversary_vs_zoo", interactive=True)
 #ex.observers.append(MongoObserver(url='127.0.0.1:27017',
 #                                      db_name='better_adversarial_defenses'))
 
+env_cls = create_env
+env_config = {'with_video': False}
 
-@ex.capture
-def log_dict(_run, d, prefix='', counter=0):
+#@ex.capture
+def log_dict(d, prefix='', counter=0, _run=None):
     """Ray dictionary results to sacred."""
     for k, v in d.items():
         if isinstance(v, int) or isinstance(v, float):
@@ -50,17 +51,14 @@ def log_dict(_run, d, prefix='', counter=0):
         elif isinstance(v, dict):
             log_dict(d=d, prefix=k + '.', counter=counter)
 
-@ex.capture
-def ray_init(num_cpus):
+def ray_init(num_cpus=60):
     """Initialize ray."""
     ray.shutdown()
     return ray.init(num_cpus=num_cpus, # ignore_reinit_error=True
-                    temp_dir='/scratch/sergei/tmp'
-    time.sleep(5)
+            temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,})
 
 
-@ex.capture
-def build_trainer_config(restore_state=None, train_policies, config, num_workers, num_workers_tf, env_config):
+def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=16):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -152,7 +150,6 @@ def build_trainer_config(restore_state=None, train_policies, config, num_workers
     }
     return config
 
-@ex.capture
 def build_trainer(restore_state=None, train_policies=None, config=None):
     """Create a RPS trainer for 2 agents, restore state, and only train specific policies."""
     
@@ -166,8 +163,7 @@ def build_trainer(restore_state=None, train_policies=None, config=None):
     return trainer
 
 
-@ex.capture
-def train_one(_run, config, checkpoint=None):
+def train_one(config, checkpoint=None, _run=None):
     start = 0
     if checkpoint:
         with open(checkpoint) as f:
@@ -177,8 +173,7 @@ def train_one(_run, config, checkpoint=None):
     print("Building trainer config...")
     restore_state = None
     do_track = True
-    rl_config = build_trainer_config(restore_state=restore_state,
-                              train_policies=config['train_policies'],
+    rl_config = build_trainer_config(train_policies=config['train_policies'],
                               config=config)
     
     print("Building trainer...")
@@ -190,10 +185,11 @@ def train_one(_run, config, checkpoint=None):
         results = trainer.train()
         print("Iteration %d done" % step)
         if do_track:
-            track.log(**results)
+            tune.report(**results)
         else:
             print(pretty_print(results))
-        log_dict(d=results, counter=step)
+        if _run is not None:
+            log_dict(d=results, counter=step)
 
 
         if step % 10 == 0:
@@ -209,48 +205,38 @@ def train_one(_run, config, checkpoint=None):
             tune.save_checkpoint(path)
             print("Checkpoint %d done" % step)
 
-@ex.config
-def config():
-    env_cls = create_env
-    env_config = {'with_video': False}
-        
+
+
+def main(_run=None):
     # try changing learning rate
     config = {}
 
-    config['train_batch_size'] = 65536#tune.loguniform(2**11, 2**16, 2)
+    config['train_batch_size'] = 2048#tune.loguniform(2**11, 2**16, 2)
     config['lr'] = tune.loguniform(1e-5, 1e-2)
-    config['sgd_minibatch_size'] = 8192#tune.loguniform(512, 65536, 2)
-    config['num_sgd_iter'] = 30#tune.uniform(1, 30)
+    config['sgd_minibatch_size'] = 1024#tune.loguniform(512, 65536, 2)
+    config['num_sgd_iter'] = 3#tune.uniform(1, 30)
     config['train_steps'] = 10000
 
     # ['humanoid_blocker', 'humanoid'],
     config['train_policies'] = ['player_1']
-
-    #config['num_workers'] = 40
-
-
+    ray_init()
     custom_scheduler = ASHAScheduler(
         metric='tune/policy_reward_mean/player_1',
         mode="max",
         grace_period=5,
     )
-    num_workers = 16
-    num_workers_tf = 16
-    num_cpus=60
-
-
-@ex.automain
-def main(_run, config, custom_scheduler):
-    ray_init()
     tf.keras.backend.set_floatx('float32')
     analysis = tune.run(
             train_one, 
             config=config, 
-            verbose=2,
+            verbose=True,
             name="adversarial_tune",
-            num_samples=1,
+            num_samples=100,
             checkpoint_freq=10,
             scheduler=custom_scheduler,
-            resources_per_trial={"cpu": 17},
+            resources_per_trial={"custom_resources": {"tune_cpu": 9}},
             queue_trials=True,
         )
+
+if __name__ == '__main__':
+    main()
