@@ -58,7 +58,7 @@ def ray_init(num_cpus=60):
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,})
 
 
-def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=16):
+def build_trainer_config(train_policies, config, num_workers=50, num_workers_tf=32, env_config=env_config):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -147,6 +147,7 @@ def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=1
             "intra_op_parallelism_threads": num_workers_tf,
             "inter_op_parallelism_threads": num_workers_tf,
         },
+        "kl_coeff": 1e-2
     }
     return config
 
@@ -163,21 +164,26 @@ def build_trainer(restore_state=None, train_policies=None, config=None):
     return trainer
 
 
-def train_one(config, checkpoint=None, _run=None):
+def train_one(config, checkpoint=None, _run=None, do_track=True):
     start = 0
+    w = None
     if checkpoint:
-        with open(checkpoint) as f:
+        with open(checkpoint, 'r') as f:
             state = json.loads(f.read())
             start = state["step"] + 1
+            w = codecs.decode(state['weights'].encode(), 'base64')
             
     print("Building trainer config...")
     restore_state = None
-    do_track = True
     rl_config = build_trainer_config(train_policies=config['train_policies'],
                               config=config)
     
     print("Building trainer...")
     trainer = build_trainer(restore_state=None, config=rl_config)
+    # trainer.restore(os.path.dirname(checkpoint) + "/")
+    if w is not None:
+        trainer.set_weights(pickle.loads(w))
+
     
     print("Starting iterations...")
     
@@ -192,50 +198,75 @@ def train_one(config, checkpoint=None, _run=None):
             log_dict(d=results, counter=step)
 
 
-        if step % 10 == 0:
+        if step % 10 == 0 or step == start:
             # Obtain a checkpoint directory
-            checkpoint_dir = tune.make_checkpoint_dir(step=step)
-            path = os.path.join(checkpoint_dir, "checkpoint")
+            if do_track:
+                checkpoint_dir = tune.make_checkpoint_dir(step=step)
+            else:
+                checkpoint_dir = checkpoint + "_new"
+            path = os.path.join(checkpoint_dir, str(step), "checkpoint")
+            os.makedirs(os.path.join(checkpoint_dir, str(step)), exist_ok=True)
             with open(path, "w") as f:
                 w = trainer.get_weights()
                 wp = pickle.dumps(w)
                 wps = codecs.encode(wp, 'base64').decode()
 
-                f.write(json.dumps({"step": start, "weights": wps}))
-            tune.save_checkpoint(path)
+                f.write(json.dumps({"step": step, "weights": wps}))
+            if do_track:
+                tune.save_checkpoint(path)
             print("Checkpoint %d done" % step)
 
 
-
-def main(_run=None):
+def get_config():
     # try changing learning rate
     config = {}
 
-    config['train_batch_size'] = 2048#tune.loguniform(2**11, 2**16, 2)
-    config['lr'] = tune.loguniform(1e-5, 1e-2)
-    config['sgd_minibatch_size'] = 1024#tune.loguniform(512, 65536, 2)
-    config['num_sgd_iter'] = 3#tune.uniform(1, 30)
+    config['train_batch_size'] = tune.loguniform(2048, 65536, 2)
+    config['lr'] = tune.loguniform(1e-5, 1e-2, 10)
+    config['sgd_minibatch_size'] = tune.loguniform(512, 65536, 2)
+    config['num_sgd_iter'] = tune.uniform(1, 30)
     config['train_steps'] = 10000
 
     # ['humanoid_blocker', 'humanoid'],
     config['train_policies'] = ['player_1']
+    return config
+
+def main(_run=None):
+    config = get_config()
     ray_init()
     custom_scheduler = ASHAScheduler(
-        metric='tune/policy_reward_mean/player_1',
+        metric='policy_reward_mean/player_1',
         mode="max",
-        grace_period=5,
+        grace_period=10 * 3600,
+        max_t=5 * 24 * 3600,
+        time_attr='time_since_restore',
     )
     tf.keras.backend.set_floatx('float32')
+    checkpoint = "/home/sergei/ray_results/adversarial_tune/train_one_4_lr=9.0345e-05,num_sgd_iter=2.0316,sgd_minibatch_size=2809.3,train_batch_size=5.9817e+04_2020-07-23_00-18-08px7x2dnb/checkpoint_610/checkpoint"
+
+
+    config = {}
+    config['train_batch_size'] = 59817
+    config['lr'] = 3e-4
+    config['num_sgd_iter'] = 2
+    config['sgd_minibatch_size'] = 2809
+    config['train_policies'] = ['player_1']
+    config['train_steps'] = 10000
+
+    train_one(config=config, checkpoint=checkpoint, do_track=False)
+    return
+
     analysis = tune.run(
             train_one, 
             config=config, 
             verbose=True,
             name="adversarial_tune",
-            num_samples=100,
+            num_samples=1,
             checkpoint_freq=10,
             scheduler=custom_scheduler,
             resources_per_trial={"custom_resources": {"tune_cpu": 9}},
             queue_trials=True,
+            resume=True,
         )
 
 if __name__ == '__main__':

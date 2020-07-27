@@ -1,4 +1,4 @@
-from youshallnotpass_rllib_adversarial import build_trainer, build_trainer_config, config, created_envs
+from youshallnotpass_rllib_adversarial import build_trainer, build_trainer_config, get_config, created_envs
 import pickle, json, codecs
 import argparse
 from tqdm import tqdm
@@ -11,14 +11,17 @@ parser.add_argument('--steps', type=int, default=10,
 args = parser.parse_args()
 
 
+config = get_config()
 config['train_policies'] = []
 config['train_steps'] = args.steps
 config['train_batch_size'] = 256
+config['sgd_minibatch_size'] = 256
+config['num_sgd_iter'] = 1
+config['lr'] = 1e-3
 
 restore_state = None
 env_config = {'with_video': True}
-rl_config = build_trainer_config(restore_state=restore_state,
-                              train_policies=config['train_policies'],
+rl_config = build_trainer_config(train_policies=config['train_policies'],
                               config=config, num_workers=0, env_config=env_config)
 trainer = build_trainer(restore_state=None, config=rl_config)
 
