@@ -58,7 +58,7 @@ def ray_init(num_cpus=60):
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,})
 
 
-def build_trainer_config(train_policies, config, num_workers=50, num_workers_tf=32, env_config=env_config):
+def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=32, env_config=env_config):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -86,6 +86,7 @@ def build_trainer_config(train_policies, config, num_workers=50, num_workers_tf=
                         "use_lstm": False,
                         "fcnet_hiddens": [64, 64],
                         #"custom_action_dist": "DiagGaussian",
+                        "fcnet_activation": "tanh",
                     },
                     "framework": "tfe",
                 })

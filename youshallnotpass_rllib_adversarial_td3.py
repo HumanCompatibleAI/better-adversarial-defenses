@@ -11,9 +11,11 @@ import random
 from ray.rllib.policy.policy import Policy
 from gym.spaces import Discrete, Box
 from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.agents.ddpg import TD3Trainer 
 from functools import partial
 from ray.tune.logger import pretty_print
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
+from ray.rllib.agents.ddpg.ddpg_tf_policy import DDPGTFPolicy
 from ray.rllib.models import ModelCatalog
 import json, pickle
 
@@ -58,7 +60,7 @@ def ray_init(num_cpus=60):
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,})
 
 
-def build_trainer_config(train_policies, config, num_workers=50, num_workers_tf=32, env_config=env_config):
+def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=32, env_config=env_config):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -81,10 +83,13 @@ def build_trainer_config(train_policies, config, num_workers=50, num_workers_tf=
             "framework": "tfe",
         })
         
-        agent_config_from_scratch = (PPOTFPolicy, obs_space, act_space, {
+        agent_config_from_scratch = (DDPGTFPolicy, obs_space, act_space, {
                     "model": {
                         "use_lstm": False,
                         "fcnet_hiddens": [64, 64],
+                        #"critic_hiddens": [64, 64],
+                        "fcnet_activation": "tanh",
+                        #"critic_hidden_activation": "tanh"
                         #"custom_action_dist": "DiagGaussian",
                     },
                     "framework": "tfe",
@@ -130,10 +135,10 @@ def build_trainer_config(train_policies, config, num_workers=50, num_workers_tf=
         },
         "framework": "tfe",
         "lr": config.get('lr', 1e-4),
-        "vf_loss_coeff": 0.5,
+        #"vf_loss_coeff": 0.5,
         "gamma": 0.99,
-        "sgd_minibatch_size": int(config.get("sgd_minibatch_size", 128)),
-        "num_sgd_iter": int(config.get("num_sgd_iter", 30)),
+        #"sgd_minibatch_size": int(config.get("sgd_minibatch_size", 128)),
+        #"num_sgd_iter": int(config.get("num_sgd_iter", 30)),
         
         'tf_session_args': {'intra_op_parallelism_threads': num_workers_tf,
           'inter_op_parallelism_threads': num_workers_tf,
@@ -147,7 +152,7 @@ def build_trainer_config(train_policies, config, num_workers=50, num_workers_tf=
             "intra_op_parallelism_threads": num_workers_tf,
             "inter_op_parallelism_threads": num_workers_tf,
         },
-        "kl_coeff": 1e-2
+        # "kl_coeff": 1e-2
     }
     return config
 
@@ -156,7 +161,7 @@ def build_trainer(restore_state=None, train_policies=None, config=None):
     
     print("Using config")
     print(config)
-    cls = PPOTrainer
+    cls = TD3Trainer
     trainer = cls(config=config)
     env = trainer.workers.local_worker().env
     if restore_state is not None:
@@ -186,6 +191,9 @@ def train_one(config, checkpoint=None, _run=None, do_track=True):
 
     
     print("Starting iterations...")
+    
+    if checkpoint is None:
+        checkpoint = trainer.logdir
     
     for step in range(start, config['train_steps']):
         results = trainer.train()
@@ -223,8 +231,8 @@ def get_config():
 
     config['train_batch_size'] = tune.loguniform(2048, 65536, 2)
     config['lr'] = tune.loguniform(1e-5, 1e-2, 10)
-    config['sgd_minibatch_size'] = tune.loguniform(512, 65536, 2)
-    config['num_sgd_iter'] = tune.uniform(1, 30)
+    #config['sgd_minibatch_size'] = tune.loguniform(512, 65536, 2)
+    #config['num_sgd_iter'] = tune.uniform(1, 30)
     config['train_steps'] = 10000
 
     # ['humanoid_blocker', 'humanoid'],
@@ -246,14 +254,14 @@ def main(_run=None):
 
 
     config = {}
-    config['train_batch_size'] = 59817
+    config['train_batch_size'] = 2048
     config['lr'] = 3e-4
-    config['num_sgd_iter'] = 2
-    config['sgd_minibatch_size'] = 2809
+    #config['num_sgd_iter'] = 2
+    #config['sgd_minibatch_size'] = 2809
     config['train_policies'] = ['player_1']
     config['train_steps'] = 10000
 
-    train_one(config=config, checkpoint=checkpoint, do_track=False)
+    train_one(config=config, do_track=False)
     return
 
     analysis = tune.run(
