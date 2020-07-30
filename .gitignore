@@ -1,6 +1,7 @@
 MUJOCO_LOG.TXT
 src
 *_log.txt
+video/
 *.mp4
 *.swp
 render*.png
