@@ -26,7 +26,7 @@ import gym
 from gym_compete_to_rllib import created_envs, env_name, create_env, env_name_rllib
 
 import os
-#os.environ['DISPLAY'] = ':0'
+os.environ['DISPLAY'] = ':0'
 import codecs
 import time
 
@@ -51,14 +51,18 @@ def log_dict(d, prefix='', counter=0, _run=None):
         elif isinstance(v, dict):
             log_dict(d=d, prefix=k + '.', counter=counter)
 
-def ray_init(num_cpus=60):
+def ray_init(num_cpus=60, shutdown=True):
     """Initialize ray."""
-    ray.shutdown()
-    return ray.init(num_cpus=num_cpus, # ignore_reinit_error=True
-            temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,})
+    if shutdown:
+        ray.shutdown()
+    kwargs = {}
+    if not shutdown:
+        kwargs['ignore_reinit_error'] = True
+    return ray.init(num_cpus=num_cpus,
+            temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,}, **kwargs)
 
 
-def build_trainer_config(train_policies, config, num_workers=10, num_workers_tf=32, env_config=env_config):
+def build_trainer_config(train_policies, config, num_workers=50, use_gpu=True, num_workers_tf=32, env_config=env_config, load_normal=False):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -90,10 +94,11 @@ def build_trainer_config(train_policies, config, num_workers=10, num_workers_tf=
                         "free_log_std": True,
                     },
                     "framework": "tfe",
+                    "observation_filter": "MeanStdFilter",
                 })
         
         if agent_id == 1:
-            return agent_config_from_scratch
+            return agent_config_pretrained if load_normal else agent_config_from_scratch
         elif agent_id == 2:
             return agent_config_pretrained
         else:
@@ -124,9 +129,8 @@ def build_trainer_config(train_policies, config, num_workers=10, num_workers_tf=
         "env": env_name_rllib,
         "env_config": env_config,
         "use_gae": False,
-        "num_gpus": 1,
+        "num_gpus": 4 if use_gpu else 0,
         "batch_mode": "complete_episodes",
-        "observation_filter": "MeanStdFilter",
         "num_workers": num_workers,
         "train_batch_size": int(config['train_batch_size']),
         "multiagent": {
