@@ -26,7 +26,7 @@ import gym
 from gym_compete_to_rllib import created_envs, env_name, create_env, env_name_rllib
 
 import os
-os.environ['DISPLAY'] = ':0'
+#os.environ['DISPLAY'] = ':0'
 import codecs
 import time
 
@@ -58,7 +58,7 @@ def ray_init(num_cpus=60):
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,})
 
 
-def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=32, env_config=env_config):
+def build_trainer_config(train_policies, config, num_workers=10, num_workers_tf=32, env_config=env_config):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -87,6 +87,7 @@ def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=3
                         "fcnet_hiddens": [64, 64],
                         #"custom_action_dist": "DiagGaussian",
                         "fcnet_activation": "tanh",
+                        "free_log_std": True,
                     },
                     "framework": "tfe",
                 })
@@ -122,6 +123,10 @@ def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=3
     config = {
         "env": env_name_rllib,
         "env_config": env_config,
+        "use_gae": False,
+        "num_gpus": 1,
+        "batch_mode": "complete_episodes",
+        "observation_filter": "MeanStdFilter",
         "num_workers": num_workers,
         "train_batch_size": int(config['train_batch_size']),
         "multiagent": {
@@ -132,7 +137,7 @@ def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=3
         "framework": "tfe",
         "lr": config.get('lr', 1e-4),
         "vf_loss_coeff": 0.5,
-        "gamma": 0.99,
+        "gamma": 0.995,
         "sgd_minibatch_size": int(config.get("sgd_minibatch_size", 128)),
         "num_sgd_iter": int(config.get("num_sgd_iter", 30)),
         
@@ -148,7 +153,7 @@ def build_trainer_config(train_policies, config, num_workers=8, num_workers_tf=3
             "intra_op_parallelism_threads": num_workers_tf,
             "inter_op_parallelism_threads": num_workers_tf,
         },
-        "kl_coeff": 1e-2
+        "kl_coeff": 1.0,
     }
     return config
 
@@ -185,6 +190,8 @@ def train_one(config, checkpoint=None, _run=None, do_track=True):
     if w is not None:
         trainer.set_weights(pickle.loads(w))
 
+    if checkpoint is None:
+        checkpoint = trainer.logdir
     
     print("Starting iterations...")
     
@@ -243,18 +250,17 @@ def main(_run=None):
         time_attr='time_since_restore',
     )
     tf.keras.backend.set_floatx('float32')
-    checkpoint = "/home/sergei/ray_results/adversarial_tune/train_one_4_lr=9.0345e-05,num_sgd_iter=2.0316,sgd_minibatch_size=2809.3,train_batch_size=5.9817e+04_2020-07-23_00-18-08px7x2dnb/checkpoint_610/checkpoint"
 
 
     config = {}
-    config['train_batch_size'] = 59817
+    config['train_batch_size'] = 320000
     config['lr'] = 3e-4
-    config['num_sgd_iter'] = 2
-    config['sgd_minibatch_size'] = 2809
+    config['num_sgd_iter'] = 20
+    config['sgd_minibatch_size'] = 32768
     config['train_policies'] = ['player_1']
     config['train_steps'] = 10000
 
-    train_one(config=config, checkpoint=checkpoint, do_track=False)
+    train_one(config=config, do_track=False)
     return
 
     analysis = tune.run(
