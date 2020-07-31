@@ -42,6 +42,8 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
     
     def reset(self):
         observations = self._env.reset()
+        #self._env.render()
+        #print("Reset", observations)
         return self.pack_array(observations)
 
     def step(self, action_dict, reward_scaler=1./100):
@@ -76,8 +78,11 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         
         # for adversarial training
         if 'player_1' in rew:
-            rew['player_1'] = infos['player_1']['reward_remaining'] * reward_scaler
-        
+            #rew['player_1'] = infos['player_1']['reward_remaining'] * reward_scaler
+            rew['player_1'] = -infos['player_2']['reward_remaining'] * reward_scaler
+
+        #self._env.render()
+        #print("Step", rew, dones, infos)
         return obs, rew, dones, infos
     
     @property
