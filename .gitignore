@@ -3,6 +3,9 @@ src
 *_log.txt
 video/
 *.mp4
+mem_out*.txt
+*.dat
+.idea
 *.swp
 render*.png
 video-*

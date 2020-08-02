@@ -75,6 +75,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
     obs_dim = env.observation_space[0].shape[0]
     act_dim = env.action_space[0].shape[0]
     env_name_2 = env_name.split('/')[1]
+    env.close()
     
     if isinstance(agent_id, int):
         agent_id += 1

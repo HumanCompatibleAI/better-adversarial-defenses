@@ -26,7 +26,7 @@ import gym
 from gym_compete_to_rllib import created_envs, env_name, create_env, env_name_rllib
 
 import os
-os.environ['DISPLAY'] = ':0'
+#os.environ['DISPLAY'] = ':0'
 import codecs
 import time
 
@@ -62,7 +62,7 @@ def ray_init(num_cpus=60, shutdown=True):
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,}, **kwargs)
 
 
-def build_trainer_config(train_policies, config, num_workers=50, use_gpu=True, num_workers_tf=32, env_config=env_config, load_normal=False):
+def build_trainer_config(train_policies, config, num_workers=2, use_gpu=True, num_workers_tf=32, env_config=env_config, load_normal=False):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -128,8 +128,8 @@ def build_trainer_config(train_policies, config, num_workers=50, use_gpu=True, n
     config = {
         "env": env_name_rllib,
         "env_config": env_config,
-        "use_gae": False,
-        "num_gpus": 4 if use_gpu else 0,
+        #"use_gae": False,
+       # "num_gpus": 1 if use_gpu else 0,
         "batch_mode": "complete_episodes",
         "num_workers": num_workers,
         "train_batch_size": int(config['train_batch_size']),
@@ -158,6 +158,8 @@ def build_trainer_config(train_policies, config, num_workers=50, use_gpu=True, n
             "inter_op_parallelism_threads": num_workers_tf,
         },
         "kl_coeff": 1.0,
+        "memory_per_worker": 500000000,
+        "object_store_memory_per_worker": 500000000,
     }
     return config
 
@@ -246,29 +248,44 @@ def get_config():
 def main(_run=None):
     config = get_config()
     ray_init()
-    custom_scheduler = ASHAScheduler(
-        metric='policy_reward_mean/player_1',
-        mode="max",
-        grace_period=10 * 3600,
-        max_t=5 * 24 * 3600,
-        time_attr='time_since_restore',
-    )
+    #custom_scheduler = ASHAScheduler(
+    #    metric='policy_reward_mean/player_1',
+    #    mode="max",
+    #    grace_period=10 * 3600,
+    #    max_t=5 * 24 * 3600,
+    #    time_attr='time_since_restore',
+    #)
     tf.keras.backend.set_floatx('float32')
 
 
     config = {}
-    config['train_batch_size'] = 320000
+    config['train_batch_size'] = 32768
     config['lr'] = 3e-4
-    config['num_sgd_iter'] = 20
-    config['sgd_minibatch_size'] = 32768
+    config['num_sgd_iter'] = 10
+    config['sgd_minibatch_size'] = 8192
     config['train_policies'] = ['player_1']
     config['train_steps'] = 10000
+    rl_config = build_trainer_config(train_policies=config['train_policies'],
+                              config=config)
+    print(rl_config)
+    analysis = tune.run(
+            "PPO",#train_one, 
+            config=rl_config, 
+            verbose=True,
+            name="adversarial_tune",
+            num_samples=1,
+            checkpoint_freq=10,
+            #scheduler=custom_scheduler,
+            #resources_per_trial={"custom_resources": {"tune_cpu": 9}},
+            queue_trials=True,
+            #resume=True,
+        )
 
-    train_one(config=config, do_track=False)
+    #train_one(config=config, do_track=False)
     return
 
     analysis = tune.run(
-            train_one, 
+            "PPO",#train_one, 
             config=config, 
             verbose=True,
             name="adversarial_tune",
