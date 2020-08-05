@@ -26,7 +26,7 @@ import gym
 from gym_compete_to_rllib import created_envs, env_name, create_env, env_name_rllib
 
 import os
-os.environ['DISPLAY'] = ':0'
+#os.environ['DISPLAY'] = ':0'
 import codecs
 import time
 
@@ -273,7 +273,7 @@ def main(_run=None):
     #return
 
     analysis = tune.run(
-            train_one, 
+            "PPO",#train_one, 
             config=config, 
             verbose=True,
             name="adversarial_tune",

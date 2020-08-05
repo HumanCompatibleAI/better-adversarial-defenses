@@ -27,6 +27,9 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         self._env = env
         
         self.reset_dones()
+
+    def close(self):
+        self._env.close()
         
     def reset_dones(self):
         self.dones = {name: False for name in self.player_names}
@@ -79,6 +82,7 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         # for adversarial training
         if 'player_1' in rew:
             #rew['player_1'] = infos['player_1']['reward_remaining'] * reward_scaler
+            #rew['player_1'] = -rew['player_2']
             rew['player_1'] = -infos['player_2']['reward_remaining'] * reward_scaler
 
         #self._env.render()
@@ -94,6 +98,9 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
     def action_space(self):
         # for one agent
         return self._env.action_space[0]
+
+    def render(self, *args, **kwargs):
+        self._env.render(*args, **kwargs)
     
 class KerasModelModel(TFModelV2):
     """Create an RLLib policy from policy+value keras models."""
@@ -177,6 +184,12 @@ def gym_compete_env_with_video(env_name, directory=None):
 env_name = 'multicomp/YouShallNotPassHumans-v0'
 env_name_rllib = env_name.split('/')[1] + '_rllib'
 created_envs = []
+
+import uuid
+from memory_profiler import profile
+
+#fp=open('memory_profiler_%s.log' % uuid.uuid1(),'w+')
+@profile()#stream=fp)
 def create_env(config=None, env_name=env_name):
     #env = gym.make(env_name)
     if config['with_video']:
