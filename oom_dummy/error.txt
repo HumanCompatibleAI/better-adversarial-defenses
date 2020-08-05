@@ -1,0 +1,57 @@
+Failure # 1 (occurred at 2020-08-05_17-37-11)
+Traceback (most recent call last):
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/tune/trial_runner.py", line 468, in _process_trial
+    result = self.trial_executor.fetch_result(trial)
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/tune/ray_trial_executor.py", line 430, in fetch_result
+    result = ray.get(trial_future[0], DEFAULT_GET_TIMEOUT)
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/worker.py", line 1474, in get
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(RayOutOfMemoryError): [36mray::PPO.train()[39m (pid=7605, ip=192.168.175.153)
+  File "python/ray/_raylet.pyx", line 446, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 400, in ray._raylet.execute_task.function_executor
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 497, in train
+    raise e
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 486, in train
+    result = Trainable.train(self)
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/tune/trainable.py", line 261, in train
+    result = self._train()
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/rllib/agents/trainer_template.py", line 132, in _train
+    return self._train_exec_impl()
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/rllib/agents/trainer_template.py", line 170, in _train_exec_impl
+    res = next(self.train_exec_impl)
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 731, in __next__
+    return next(self.built_iterator)
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 814, in apply_filter
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 814, in apply_filter
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  [Previous line repeated 1 more time]
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 847, in apply_flatten
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 799, in add_wait_hooks
+    item = next(it)
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 744, in apply_foreach
+    for item in it:
+  [Previous line repeated 1 more time]
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/util/iter.py", line 445, in base_iterator
+    yield ray.get(futures, timeout=timeout)
+ray.exceptions.RayTaskError(RayOutOfMemoryError): [36mray::RolloutWorker.par_iter_next()[39m (pid=7604, ip=192.168.175.153)
+  File "python/ray/_raylet.pyx", line 408, in ray._raylet.execute_task
+  File "/home/sergei/miniconda3/envs/fresh_ray/lib/python3.8/site-packages/ray/memory_monitor.py", line 137, in raise_if_low_memory
+    raise RayOutOfMemoryError(
+ray.memory_monitor.RayOutOfMemoryError: Heap memory usage for ray_RolloutWorker_7604 is 0.4395 / 0.4395 GiB limit
+
