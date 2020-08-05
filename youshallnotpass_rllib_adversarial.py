@@ -162,73 +162,45 @@ def build_trainer_config(train_policies, config, num_workers=4, use_gpu=True, nu
     }
     return config
 
-def build_trainer(restore_state=None, train_policies=None, config=None):
-    """Create a RPS trainer for 2 agents, restore state, and only train specific policies."""
-    
-    print("Using config")
-    print(config)
-    cls = PPOTrainer
-    trainer = cls(config=config)
-    env = trainer.workers.local_worker().env
-    if restore_state is not None:
-        trainer.restore_from_object(restore_state)
-    return trainer
 
-
-def train_one(config, checkpoint=None, _run=None, do_track=True):
-    start = 0
-    w = None
-    if checkpoint:
-        with open(checkpoint, 'r') as f:
-            state = json.loads(f.read())
-            start = state["step"] + 1
-            w = codecs.decode(state['weights'].encode(), 'base64')
-            
+def train_one(config, checkpoint=None, do_track=True):
     print("Building trainer config...")
+    print("CONFIG", config)
+    print("CHECKPOINT", checkpoint)
+    if not isinstance(checkpoint, str):
+        checkpoint = None
     restore_state = None
     rl_config = build_trainer_config(train_policies=config['train_policies'],
                               config=config)
     
-    print("Building trainer...")
-    trainer = build_trainer(restore_state=None, config=rl_config)
-    # trainer.restore(os.path.dirname(checkpoint) + "/")
-    if w is not None:
-        trainer.set_weights(pickle.loads(w))
-
-    if checkpoint is None:
-        checkpoint = trainer.logdir
-    
     print("Starting iterations...")
     
-    for step in range(start, config['train_steps']):
+    @ray.remote(max_calls=1)
+    def train_iteration(checkpoint, config=rl_config):
+        trainer = PPOTrainer(config=config)
+        if checkpoint:
+            trainer.restore(checkpoint)
         results = trainer.train()
-        print("Iteration %d done" % step)
+        checkpoint = trainer.save()
+        iteration = trainer.iteration
+        trainer.stop()
+        return checkpoint, results, iteration
+
+    print("CHECKPOINT", str(checkpoint), rl_config)
+
+    while True:
+        checkpoint, results, iteration = ray.get(train_iteration.remote(checkpoint))
+        print("Iteration %d done" % iteration)
+        results['checkpoint_rllib'] = checkpoint
+
         if do_track:
             tune.report(**results)
         else:
             print(pretty_print(results))
-        if _run is not None:
-            log_dict(d=results, counter=step)
+            print("Checkpoint", checkpoint)
 
-
-        if step % 10 == 0 or step == start:
-            # Obtain a checkpoint directory
-            if do_track:
-                checkpoint_dir = tune.make_checkpoint_dir(step=step)
-            else:
-                checkpoint_dir = checkpoint + "_new"
-            path = os.path.join(checkpoint_dir, str(step), "checkpoint")
-            os.makedirs(os.path.join(checkpoint_dir, str(step)), exist_ok=True)
-            with open(path, "w") as f:
-                w = trainer.get_weights()
-                wp = pickle.dumps(w)
-                wps = codecs.encode(wp, 'base64').decode()
-
-                f.write(json.dumps({"step": step, "weights": wps}))
-            if do_track:
-                tune.save_checkpoint(path)
-            print("Checkpoint %d done" % step)
-
+        if iteration > config['train_steps']:
+            return
 
 def get_config():
     # try changing learning rate
@@ -245,10 +217,24 @@ def get_config():
     config['train_policies'] = ['player_1']
     return config
 
+def get_config_small():
+    # try changing learning rate
+    config = {}
+
+    config['train_batch_size'] = 128
+    config['lr'] = 1e-4
+    config['sgd_minibatch_size'] = 128
+    config['num_sgd_iter'] = 2
+    config['train_steps'] = 99999999
+    config['rollout_fragment_length'] = 200
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['train_policies'] = ['player_1']
+    return config
 
 
 def main(_run=None):
-    config = get_config()
+    config = get_config_small()
     ray_init()
     custom_scheduler = ASHAScheduler(
         metric='policy_reward_mean/player_1',
@@ -277,7 +263,7 @@ def main(_run=None):
             config=config, 
             verbose=True,
             name="adversarial_tune",
-            num_samples=300,
+            num_samples=1,
             checkpoint_freq=10,
             #scheduler=custom_scheduler,
             resources_per_trial={"custom_resources": {"tune_cpu": 5}},
