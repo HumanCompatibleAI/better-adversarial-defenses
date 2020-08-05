@@ -4,6 +4,7 @@ src
 video/
 *.mp4
 mem_out*.txt
+mem_out*.png
 *.dat
 .idea
 *.swp
