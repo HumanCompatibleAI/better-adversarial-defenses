@@ -62,7 +62,7 @@ def ray_init(num_cpus=60, shutdown=True):
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,}, **kwargs)
 
 
-def build_trainer_config(train_policies, config, num_workers=50, use_gpu=True, num_workers_tf=32, env_config=env_config, load_normal=False):
+def build_trainer_config(train_policies, config, num_workers=4, use_gpu=True, num_workers_tf=32, env_config=env_config, load_normal=False):
     """Build configuration for 1 run."""
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
@@ -128,11 +128,12 @@ def build_trainer_config(train_policies, config, num_workers=50, use_gpu=True, n
     config = {
         "env": env_name_rllib,
         "env_config": env_config,
-        "use_gae": False,
+        "use_gae": True,
         "num_gpus": 4 if use_gpu else 0,
         "batch_mode": "complete_episodes",
         "num_workers": num_workers,
         "train_batch_size": int(config['train_batch_size']),
+        "rollout_fragment_length": int(config.get('rollout_fragment_length', 200)),
         "multiagent": {
             "policies_to_train": train_policies,
             "policies": policies,
@@ -233,15 +234,18 @@ def get_config():
     # try changing learning rate
     config = {}
 
-    config['train_batch_size'] = tune.loguniform(2048, 65536, 2)
+    config['train_batch_size'] = tune.loguniform(2048, 320000, 2)
     config['lr'] = tune.loguniform(1e-5, 1e-2, 10)
     config['sgd_minibatch_size'] = tune.loguniform(512, 65536, 2)
     config['num_sgd_iter'] = tune.uniform(1, 30)
-    config['train_steps'] = 10000
+    config['train_steps'] = 99999999
+    config['rollout_fragment_length'] = tune.loguniform(200, 5000, 2)
 
     # ['humanoid_blocker', 'humanoid'],
     config['train_policies'] = ['player_1']
     return config
+
+
 
 def main(_run=None):
     config = get_config()
@@ -249,35 +253,37 @@ def main(_run=None):
     custom_scheduler = ASHAScheduler(
         metric='policy_reward_mean/player_1',
         mode="max",
-        grace_period=10 * 3600,
-        max_t=5 * 24 * 3600,
-        time_attr='time_since_restore',
+        grace_period=1000000,
+        reduction_factor=2,
+        max_t=30000000,
+        time_attr='timesteps_total',
     )
     tf.keras.backend.set_floatx('float32')
 
 
-    config = {}
-    config['train_batch_size'] = 320000
-    config['lr'] = 3e-4
-    config['num_sgd_iter'] = 20
-    config['sgd_minibatch_size'] = 32768
-    config['train_policies'] = ['player_1']
-    config['train_steps'] = 10000
+    #config = {}
+    #config['train_batch_size'] = 320000
+    #config['lr'] = 3e-4
+    #config['num_sgd_iter'] = 20
+    #config['sgd_minibatch_size'] = 32768
+    #config['train_policies'] = ['player_1']
+    #config['train_steps'] = 10000
 
-    train_one(config=config, do_track=False)
-    return
+    #train_one(config=config, do_track=False)
+    #return
 
     analysis = tune.run(
             train_one, 
             config=config, 
             verbose=True,
             name="adversarial_tune",
-            num_samples=1,
+            num_samples=300,
             checkpoint_freq=10,
-            scheduler=custom_scheduler,
-            resources_per_trial={"custom_resources": {"tune_cpu": 9}},
+            #scheduler=custom_scheduler,
+            resources_per_trial={"custom_resources": {"tune_cpu": 5}},
             queue_trials=True,
-            resume=True,
+            #resume=True,
+            stop={'timesteps_total': 30000000} # 30 million time-steps
         )
 
 if __name__ == '__main__':

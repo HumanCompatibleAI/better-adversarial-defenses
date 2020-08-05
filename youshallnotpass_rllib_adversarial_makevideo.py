@@ -23,6 +23,7 @@ config['train_steps'] = args.steps
 config['train_batch_size'] = 256
 config['sgd_minibatch_size'] = 256
 config['num_sgd_iter'] = 1
+config['rollout_fragment_length'] = 200
 config['lr'] = 0
 
 print("Load normal %s" % args.load_normal)
