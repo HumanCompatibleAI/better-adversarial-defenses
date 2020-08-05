@@ -202,7 +202,7 @@ def train_one(config, checkpoint=None, do_track=True):
         if iteration > config['train_steps']:
             return
 
-def get_config():
+def get_config_coarse():
     # try changing learning rate
     config = {}
 
@@ -212,6 +212,21 @@ def get_config():
     config['num_sgd_iter'] = tune.uniform(1, 30)
     config['train_steps'] = 99999999
     config['rollout_fragment_length'] = tune.loguniform(200, 5000, 2)
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['train_policies'] = ['player_1']
+    return config
+
+def get_config_fine():
+    # try changing learning rate
+    config = {}
+
+    config['train_batch_size'] = tune.loguniform(2048, 150000, 2)
+    config['lr'] = tune.loguniform(1e-5, 1e-3, 10)
+    config['sgd_minibatch_size'] = tune.loguniform(1000, 65536, 2)
+    config['num_sgd_iter'] = tune.uniform(3, 30)
+    config['train_steps'] = 99999999
+    config['rollout_fragment_length'] = tune.loguniform(2000, 5000, 2)
 
     # ['humanoid_blocker', 'humanoid'],
     config['train_policies'] = ['player_1']
@@ -234,14 +249,14 @@ def get_config_small():
 
 
 def main(_run=None):
-    config = get_config_small()
+    config = get_config_fine()
     ray_init()
     custom_scheduler = ASHAScheduler(
         metric='policy_reward_mean/player_1',
         mode="max",
         grace_period=1000000,
         reduction_factor=2,
-        max_t=30000000,
+        max_t=50000000,
         time_attr='timesteps_total',
     )
     tf.keras.backend.set_floatx('float32')
@@ -269,7 +284,7 @@ def main(_run=None):
             resources_per_trial={"custom_resources": {"tune_cpu": 5}},
             queue_trials=True,
             #resume=True,
-            stop={'timesteps_total': 30000000} # 30 million time-steps
+            stop={'timesteps_total': 50000000} # 30 million time-steps
         )
 
 if __name__ == '__main__':
