@@ -17,7 +17,7 @@ def dim_to_gym_box(dim, val=np.inf):
 
 
 class DummyMultiAgentEnv(MultiAgentEnv):
-    """Return random normal observations."""
+    """Return zero observations."""
 
     def __init__(self, config):
         del config  # Unused
@@ -34,13 +34,13 @@ class DummyMultiAgentEnv(MultiAgentEnv):
         return {p: self._obs() for p in self.players}
 
     def step(self, action_dict):
+        done = self.current_step >= self.config['n_steps']
+        self.current_step += 1
+
         obs = {p: self._obs() for p in self.players}
         rew = {p: 0.0 for p in self.players}
-        done = self.current_step >= self.config['n_steps']
-        dones = {p: done for p in self.players}
-        dones['__all__'] = done
+        dones = {p: done for p in self.players + ["__all__"]}
         infos = {p: {} for p in self.players}
-        self.current_step += 1
 
         return obs, rew, dones, infos
 
@@ -93,7 +93,11 @@ def get_trainer_config(env_config, train_policies, num_workers=5, framework="tfe
         "framework": framework,
         "train_batch_size": 32768,
         "num_sgd_iter": 1,
-        "sgd_minibatch_size": 32768
+        "sgd_minibatch_size": 32768,
+
+        # 450 megabytes for each worker (enough for 1 iteration)
+        "memory_per_worker": 450 * 1024 * 1024,
+        "object_store_memory_per_worker": 450 * 1024 * 1024,
     }
     return config
 
