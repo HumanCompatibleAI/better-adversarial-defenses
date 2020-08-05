@@ -185,11 +185,6 @@ env_name = 'multicomp/YouShallNotPassHumans-v0'
 env_name_rllib = env_name.split('/')[1] + '_rllib'
 created_envs = []
 
-import uuid
-from memory_profiler import profile
-
-#fp=open('memory_profiler_%s.log' % uuid.uuid1(),'w+')
-@profile()#stream=fp)
 def create_env(config=None, env_name=env_name):
     #env = gym.make(env_name)
     if config['with_video']:
