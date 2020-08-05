@@ -5,9 +5,12 @@ from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
+from ray.tune.logger import pretty_print
 import numpy as np
 from gym.spaces import Box
 from ray.tune.registry import register_env
+import gc
+import multiprocessing
 
 
 def dim_to_gym_box(dim, val=np.inf):
@@ -31,6 +34,16 @@ class DummyMultiAgentEnv(MultiAgentEnv):
 
     def reset(self):
         self.current_step = 0
+        #objects = gc.get_objects()
+        #objects = map(lambda x : str(type(x)), objects)
+        #objects = filter(lambda x: x.startswith("""<class 'ray."""), objects)
+        #objects = list(objects)
+        #objects_unique = np.unique(objects)
+        #objects = {o: len([x for x in objects if x == o]) for o in objects_unique}
+        #for k, v in objects.items():
+        #    print(k, v)
+        #gc.collect()
+
         return {p: self._obs() for p in self.players}
 
     def step(self, action_dict):
@@ -62,7 +75,7 @@ env_name = "DummyMultiAgentEnv"
 register_env(env_name, create_env)
 
 
-def get_trainer_config(env_config, train_policies, num_workers=5, framework="tfe"):
+def get_trainer_config(env_config, train_policies, num_workers=1, framework="tfe"):
     """Build configuration for 1 run."""
 
     # obtaining parameters from the environment
@@ -85,15 +98,16 @@ def get_trainer_config(env_config, train_policies, num_workers=5, framework="tfe
     # creating policies
     policies = {p: get_policy_config(p) for p in players}
 
+    bs = 1005
     # trainer config
     config = {
         "env": env_name, "env_config": env_config, "num_workers": num_workers,
         "multiagent": {"policy_mapping_fn": lambda x: x, "policies": policies,
                        "policies_to_train": train_policies},
         "framework": framework,
-        "train_batch_size": 32768,
+        "train_batch_size": bs,
         "num_sgd_iter": 1,
-        "sgd_minibatch_size": 32768,
+        "sgd_minibatch_size": bs,
 
         # 450 megabytes for each worker (enough for 1 iteration)
         "memory_per_worker": 450 * 1024 * 1024,
@@ -101,11 +115,42 @@ def get_trainer_config(env_config, train_policies, num_workers=5, framework="tfe
     }
     return config
 
+def recreate_remote_workers(self):
+    """Recreate workers in a worker set."""
+    print("RECREATE WORKERS")
+    #traceback.print_stack()
+    num_workers = len(self._remote_workers)
+    for w in self._remote_workers:
+        w.stop.remote()
+        del w
+        #w.__ray_terminate__.remote()
+
+    self._remote_workers = []
+    self.add_workers(num_workers)
+
+def run_ppo(config, restore_state=None):
+    ckpt = None
+    for step in range(10000):
+        @ray.remote(max_calls=1)
+        def f(ckpt):
+            trainer = PPOTrainer(config=config)
+            if ckpt:
+               trainer.restore(ckpt)
+            info = trainer.train()
+            print(pretty_print(info))
+            ckpt = trainer.save()
+            trainer.stop()
+            del trainer
+            gc.collect()
+            return ckpt, info
+        ckpt, results = ray.get(f.remote(ckpt))
+        tune.report(**results)
+        gc.collect()
 
 def tune_run():
-    ray.init(ignore_reinit_error=True)
+    ray.init(ignore_reinit_error=True, lru_evict=True)
     config = get_trainer_config(train_policies=['player_1', 'player_2'], env_config={})
-    return tune.run("PPO", config=config, verbose=True, name="dummy_run", num_samples=1)
+    return tune.run(run_ppo, config=config, verbose=True, name="dummy_run", num_samples=1)
 
 
 if __name__ == '__main__':
