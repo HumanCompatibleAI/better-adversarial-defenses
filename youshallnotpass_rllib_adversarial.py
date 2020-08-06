@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import uuid
+import subprocess
+import sys
+import argparse
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 import numpy as np
@@ -162,6 +166,31 @@ def build_trainer_config(train_policies, config, num_workers=4, use_gpu=True, nu
     }
     return config
 
+def train_iteration_process(pickle_path, ray_init=True):
+    print("Load pickle")
+    checkpoint, config = pickle.load(open(pickle_path, 'rb'))
+    print("Ray init")
+    if ray_init:
+        ray.init(address=config['redis_address'])
+    print("Build config")
+    rl_config = build_trainer_config(train_policies=config['train_policies'],
+                              config=config)
+    print("Create trainer")
+    trainer = PPOTrainer(config=rl_config)
+    print("Restore")
+    if checkpoint:
+        trainer.restore(checkpoint)
+    print("Train")
+    results = trainer.train()
+    print("Save")
+    checkpoint = trainer.save()
+    results['checkpoint_rllib'] = checkpoint
+    results['trainer_iteration'] = trainer.iteration
+    del results['config']
+    print("Dump")
+    trainer.stop()
+    pickle.dump(results, open(pickle_path + '.ans.pkl', 'wb'))
+    print("Done")
 
 def train_one(config, checkpoint=None, do_track=True):
     print("Building trainer config...")
@@ -170,28 +199,31 @@ def train_one(config, checkpoint=None, do_track=True):
     if not isinstance(checkpoint, str):
         checkpoint = None
     restore_state = None
-    rl_config = build_trainer_config(train_policies=config['train_policies'],
-                              config=config)
     
     print("Starting iterations...")
-    
-    @ray.remote(max_calls=1)
-    def train_iteration(checkpoint, config=rl_config):
-        trainer = PPOTrainer(config=config)
-        if checkpoint:
-            trainer.restore(checkpoint)
-        results = trainer.train()
-        checkpoint = trainer.save()
-        iteration = trainer.iteration
-        trainer.stop()
-        return checkpoint, results, iteration
+   
+    def train_iteration(checkpoint, config):
+        pickle_path = '/tmp/' + str(uuid.uuid1()) + '.pkl'
+        pickle_path_ans = pickle_path + '.ans.pkl'
+        pickle.dump([checkpoint, config], open(pickle_path, 'wb'))
+        # overhead doesn't seem significant!
+        try:
+            subprocess.run("python %s --one_trial %s 2>&1 > %s" % (config['main_filename'], pickle_path, pickle_path + '.err'), shell=True, check=True, stdout=sys.stdout)
+        except:
+            raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
+        #train_iteration_process(pickle_path, ray_init=False)
+        results = pickle.load(open(pickle_path_ans, 'rb'))
+        os.unlink(pickle_path)
+        os.unlink(pickle_path_ans)
+        return results
 
-    print("CHECKPOINT", str(checkpoint), rl_config)
+    print("CHECKPOINT", str(checkpoint), config)
 
     while True:
-        checkpoint, results, iteration = ray.get(train_iteration.remote(checkpoint))
+        results = train_iteration(checkpoint, config)
+        checkpoint = results['checkpoint_rllib']
+        iteration = results['trainer_iteration']
         print("Iteration %d done" % iteration)
-        results['checkpoint_rllib'] = checkpoint
 
         if do_track:
             tune.report(**results)
@@ -249,8 +281,9 @@ def get_config_small():
 
 
 def main(_run=None):
-    config = get_config_fine()
-    ray_init()
+    config = get_config_small()
+    cluster_info = ray_init()
+    print(cluster_info)
     custom_scheduler = ASHAScheduler(
         metric='policy_reward_mean/player_1',
         mode="max",
@@ -261,6 +294,8 @@ def main(_run=None):
     )
     tf.keras.backend.set_floatx('float32')
 
+    config['main_filename'] = sys.argv[0]
+    config['redis_address'] = cluster_info['redis_address']
 
     #config = {}
     #config['train_batch_size'] = 320000
@@ -281,11 +316,21 @@ def main(_run=None):
             num_samples=1,
             checkpoint_freq=10,
             #scheduler=custom_scheduler,
-            resources_per_trial={"custom_resources": {"tune_cpu": 5}},
+            resources_per_trial={"custom_resources": {"tune_cpu": 6}},
             queue_trials=True,
             #resume=True,
             stop={'timesteps_total': 50000000} # 30 million time-steps
         )
 
+
+parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
+parser.add_argument('--one_trial', type=str, help='Trial to run (if None, run tune)', default=None, required=False)
+
+
 if __name__ == '__main__':
-    main()
+    args = parser.parse_args()
+    if args.one_trial is None:
+        main()
+    else:
+        train_iteration_process(args.one_trial)
+        sys.exit(0)
