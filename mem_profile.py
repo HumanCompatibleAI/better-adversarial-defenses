@@ -13,6 +13,7 @@ while True:
             # Get process name & pid from process object.
             processName = proc.name()
             processID = proc.pid
+            if proc.username() != 'sergei': continue
             print(processName , ' ::: ', processID, proc.memory_info())
             d.append({'name': processName, 'id': processID, 'mem_info': proc.memory_info()._asdict(), 'timestep': time.time()})
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):

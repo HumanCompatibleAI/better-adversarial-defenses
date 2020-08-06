@@ -62,7 +62,7 @@ def ray_init(num_cpus=60, shutdown=True):
     kwargs = {}
     if not shutdown:
         kwargs['ignore_reinit_error'] = True
-    return ray.init(num_cpus=num_cpus,
+    return ray.init(num_cpus=num_cpus * 2,
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,}, **kwargs)
 
 
@@ -172,6 +172,7 @@ def train_iteration_process(pickle_path, ray_init=True):
     print("Ray init")
     if ray_init:
         ray.init(address=config['redis_address'])
+    #ray.init(num_cpus=5, include_dashboard=False)
     print("Build config")
     rl_config = build_trainer_config(train_policies=config['train_policies'],
                               config=config)
@@ -190,6 +191,7 @@ def train_iteration_process(pickle_path, ray_init=True):
     print("Dump")
     trainer.stop()
     pickle.dump(results, open(pickle_path + '.ans.pkl', 'wb'))
+    #ray.shutdown()
     print("Done")
 
 def train_one(config, checkpoint=None, do_track=True):
@@ -207,14 +209,14 @@ def train_one(config, checkpoint=None, do_track=True):
         pickle_path_ans = pickle_path + '.ans.pkl'
         pickle.dump([checkpoint, config], open(pickle_path, 'wb'))
         # overhead doesn't seem significant!
+        subprocess.run("python %s --one_trial %s 2>&1 > %s" % (config['main_filename'], pickle_path, pickle_path + '.err'), shell=True)
+        #train_iteration_process(pickle_path, ray_init=False)
+        os.unlink(pickle_path)
         try:
-            subprocess.run("python %s --one_trial %s 2>&1 > %s" % (config['main_filename'], pickle_path, pickle_path + '.err'), shell=True, check=True, stdout=sys.stdout)
+            results = pickle.load(open(pickle_path_ans, 'rb'))
+            os.unlink(pickle_path_ans)
         except:
             raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
-        #train_iteration_process(pickle_path, ray_init=False)
-        results = pickle.load(open(pickle_path_ans, 'rb'))
-        os.unlink(pickle_path)
-        os.unlink(pickle_path_ans)
         return results
 
     print("CHECKPOINT", str(checkpoint), config)
@@ -281,7 +283,7 @@ def get_config_small():
 
 
 def main(_run=None):
-    config = get_config_small()
+    config = get_config_fine()
     cluster_info = ray_init()
     print(cluster_info)
     custom_scheduler = ASHAScheduler(
@@ -312,11 +314,11 @@ def main(_run=None):
             train_one, 
             config=config, 
             verbose=True,
-            name="adversarial_tune",
-            num_samples=1,
+            name="adversarial_tune_fine",
+            num_samples=300,
             checkpoint_freq=10,
             #scheduler=custom_scheduler,
-            resources_per_trial={"custom_resources": {"tune_cpu": 6}},
+            resources_per_trial={"custom_resources": {"tune_cpu": 4}},
             queue_trials=True,
             #resume=True,
             stop={'timesteps_total': 50000000} # 30 million time-steps
