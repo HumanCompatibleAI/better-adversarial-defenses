@@ -1,42 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import uuid
+import argparse
+import os
+import pickle
 import subprocess
 import sys
-import argparse
+import uuid
+
+import ray
 import tensorflow as tf
-import numpy as np
-import ray
-from ray.rllib import agents
-from tqdm.notebook import tqdm
-import random
-from ray.rllib.policy.policy import Policy
-from gym.spaces import Discrete, Box
-from ray.rllib.agents.ppo import PPOTrainer
-from functools import partial
-from ray.tune.logger import pretty_print
-from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
-from ray.rllib.models import ModelCatalog
-import json, pickle
-
-import ray
 from ray import tune
-
-import math
-import gym
-
-from gym_compete_to_rllib import created_envs, env_name, create_env, env_name_rllib
-
-import os
-# os.environ['DISPLAY'] = ':0'
-import codecs
-import time
-
+from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
+from ray.tune.logger import pretty_print
 from ray.tune.schedulers import ASHAScheduler
 
-from sacred import Experiment
-from sacred.observers import MongoObserver
+from gym_compete_to_rllib import env_name, create_env, env_name_rllib
+
+# os.environ['DISPLAY'] = ':0'
 
 tf.compat.v1.enable_eager_execution()
 
