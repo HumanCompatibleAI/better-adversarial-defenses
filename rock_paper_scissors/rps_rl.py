@@ -1,9 +1,5 @@
-from rock_paper_scissors import rewards, n_act, action_to_descr
-import seaborn as sns
-import pandas as pd
-from matplotlib import pyplot as plt
+from rock_paper_scissors.rock_paper_scissors import rewards, n_act
 from copy import deepcopy
-from tqdm.notebook import tqdm
 import tensorflow as tf
 import numpy as np
 import os

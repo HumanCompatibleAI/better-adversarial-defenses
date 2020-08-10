@@ -16,7 +16,7 @@ from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.tune.logger import pretty_print
 from ray.tune.schedulers import ASHAScheduler
 
-from gym_compete_to_rllib import env_name, create_env, env_name_rllib
+from gym_compete_rllib.gym_compete_to_rllib import env_name, create_env, env_name_rllib
 
 # os.environ['DISPLAY'] = ':0'
 

@@ -1,4 +1,4 @@
-from load_gym_compete_policy import get_policy_value_nets, difference_new_networks
+from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
 import os, re
 
 def load_one(env_name, agent_id):
@@ -6,7 +6,7 @@ def load_one(env_name, agent_id):
     assert isinstance(nets, dict), "Can't load %s %d" % (env_name, agent_id)
 
 def test_load():
-    zoo_path = 'multiagent-competition/gym_compete/agent_zoo'
+    zoo_path = '../multiagent-competition/gym_compete/agent_zoo'
     envs = os.listdir(zoo_path)
     results = []
     total_calls = 0

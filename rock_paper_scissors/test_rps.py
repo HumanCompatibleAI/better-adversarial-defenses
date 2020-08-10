@@ -1,4 +1,4 @@
-from rock_paper_scissors import rewards, print_outcomes, n_act, action_to_descr
+from rock_paper_scissors.rock_paper_scissors import rewards, print_outcomes, n_act, action_to_descr
 import numpy as np
 
 

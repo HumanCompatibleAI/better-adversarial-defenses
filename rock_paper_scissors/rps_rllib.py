@@ -1,6 +1,4 @@
-from ray.rllib.env.multi_agent_env import MultiAgentEnv
-import rock_paper_scissors as rps
-from gym.spaces import Discrete, Box
+from gym.spaces import Box
 from ray.rllib.examples.env.rock_paper_scissors import RockPaperScissors
 import numpy as np
 

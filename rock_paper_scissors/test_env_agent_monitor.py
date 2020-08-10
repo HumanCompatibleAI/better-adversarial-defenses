@@ -1,5 +1,4 @@
-import rock_paper_scissors as rps
-from rps_rl import RPSEnv, RPSAgent, Monitor, Universe
+from rock_paper_scissors.rps_rl import RPSEnv, RPSAgent, Monitor
 
 
 def test_create_env():

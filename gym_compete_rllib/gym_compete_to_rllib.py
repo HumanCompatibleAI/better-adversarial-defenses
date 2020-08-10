@@ -1,5 +1,5 @@
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
-from load_gym_compete_policy import get_policy_value_nets
+from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
 from ray.tune.registry import register_env
 import datetime, uuid
 from ray.rllib.env.multi_agent_env import MultiAgentEnv

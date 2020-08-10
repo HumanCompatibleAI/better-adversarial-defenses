@@ -1,5 +1,4 @@
 import gym
-import gym_compete
 from tqdm import tqdm
 import numpy as np
 env_name = 'multicomp/YouShallNotPassHumans-v0'
@@ -12,7 +11,7 @@ for _ in tqdm(range(10000)):
         env.reset()
 
 
-from gym_compete_to_rllib import create_env
+from gym_compete_rllib.gym_compete_to_rllib import create_env
 from tqdm import tqdm
 import numpy as np
 

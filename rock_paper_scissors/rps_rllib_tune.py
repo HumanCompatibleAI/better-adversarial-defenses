@@ -6,18 +6,9 @@
 
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
-from rps_rllib import RPSNoise
 import numpy as np
-import ray
-from ray.rllib import agents
-from tqdm.notebook import tqdm
-import random
 from ray.rllib.examples.env.rock_paper_scissors import RockPaperScissors
-from ray.rllib.policy.policy import Policy
-from gym.spaces import Discrete, Box
 from ray.rllib.agents.ppo import PPOTrainer
-from functools import partial
-from ray.tune.registry import register_env, _global_registry, ENV_CREATOR
 from ray.tune.logger import pretty_print
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 
@@ -45,6 +36,8 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None):
     obs_space = env_cls(env_config).observation_space
     act_space = env_cls(env_config).action_space
 
+    policy_template = "learned%02d"
+
     agent_config = (PPOTFPolicy, obs_space, act_space, {
                     "model": {
                         "use_lstm": True,
@@ -54,11 +47,10 @@ def build_trainer_config(restore_state=None, train_policies=None, config=None):
                     "framework": "tfe",
                 })
 
-    # N_POLICIES = 2
-    policies_keys = ['victim', 'adversary']
+    N_POLICIES = 2
 
-    #policies = {policy_template % i: agent_config for i in range(N_POLICIES)}
-    policies = {name: agent_config for name in policies_keys}
+    policies = {policy_template % i: agent_config for i in range(N_POLICIES)}
+    policies_keys = list(sorted(policies.keys()))
 
     def select_policy(agent_id):
         assert agent_id in ["player1", "player2"]
@@ -119,55 +111,27 @@ def train(trainer, stop_iters, do_track=True):
 
 
 def train_one(config, restore_state=None, do_track=True):
-    """Train with one config."""
-
-    def train_call(policies, state, iters):
-        rl_config = build_trainer_config(restore_state=state,
-                                  train_policies=policies,
-                                  config=config)
-        trainer = build_trainer(restore_state=state, config=rl_config)
-        state = train(trainer, iters, do_track=do_track)
-        return state
-    
-    pretrain_time = config['train_steps']
-    evaluation_time = config['train_steps']
-    burst_size = config['burst_size']
-    
-    n_bursts = pretrain_time // (2 * burst_size)
-    
-    print("Pretrain time: %d" % pretrain_time)
-    print("Evaluation time: %d" % evaluation_time)
-    print("Burst size", burst_size)
-    print("Number of bursts", n_bursts)
-    print("Total iterations (true)", n_bursts * burst_size * 2 + evaluation_time)
-    
-    state = None
-    
-    if burst_size == 0:
-        state = train_call(['victim', 'adversary'], state, pretrain_time)
-    else:
-        for i in range(n_bursts):
-            state = train_call(['victim'], state, burst_size)
-            state = train_call(['adversary'], state, burst_size)
-        
-    state = train_call(['adversary'], state, evaluation_time)
-    
-    return state
-    
+    print(config)
+    rl_config = build_trainer_config(restore_state=restore_state,
+                              train_policies=config['train_policies'],
+                              config=config)
+    trainer = build_trainer(restore_state=None, config=rl_config)
+    train(trainer, config['train_steps'], do_track=do_track)
     
 
-burst_sizes = list(np.arange(35))
+node_sizes = [math.ceil(t) for t in np.logspace(0, 3, 10)]
+batch_sizes = [128, 256, 512, 1024, 2048, 4096]
+print(node_sizes)
 
-# best hypers from rps_rllib_tune.py and rps_rllib-analysis.ipynb
-config = {
-    'fc_units':                         100,
-    'lstm_units':                       22,
-    'num_workers':                      10,
-    'train_batch_size':                 4096,
-    'train_steps':                      40,
-}
 
-config['burst_size'] = tune.grid_search(burst_sizes)
+# try changing learning rate
+config = {'fc_units': tune.choice(node_sizes),
+          'lstm_units': tune.choice(node_sizes),
+          'train_batch_size': tune.choice(batch_sizes)}
+
+config['train_steps'] = 100
+config['train_policies'] = ['learned00']
+config['num_workers'] = 22
 
 print(config)
 
@@ -178,7 +142,6 @@ if __name__ == "__main__":
         train_one, 
         config=config, 
         verbose=1,
-        #num_samples=100,
-        name="bursts",
-        num_samples=10,
+        num_samples=100,
+        name="fixed_vs_learned",
     )

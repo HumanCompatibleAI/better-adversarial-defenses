@@ -1,13 +1,11 @@
 import gym
-import gym_compete
 import numpy as np
-import os
 from matplotlib import pyplot as plt
 import tensorflow.keras as keras
 import tensorflow as tf
 import pickle
-from layers import ObservationPreprocessingLayer, UnconnectedVariableLayer
-from layers import DiagonalNormalSamplingLayer, ValuePostprocessingLayer
+from gym_compete_rllib.layers import ObservationPreprocessingLayer, UnconnectedVariableLayer
+from gym_compete_rllib.layers import DiagonalNormalSamplingLayer, ValuePostprocessingLayer
 
 # path with .pkl agent files
 pickle_path = '/scratch/sergei/better-adversarial-defenses/multiagent-competition/gym_compete/agent_zoo/'

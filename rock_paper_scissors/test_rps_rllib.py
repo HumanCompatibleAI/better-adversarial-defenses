@@ -1,4 +1,4 @@
-from rps_rllib import RPSNoise
+from rock_paper_scissors.rps_rllib import RPSNoise
 import numpy as np
 
 def test_create_env():
