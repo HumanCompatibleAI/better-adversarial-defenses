@@ -2,6 +2,7 @@ MUJOCO_LOG.TXT
 src
 *_log.txt
 video/
+out.txt
 *.mp4
 mem_out*.txt
 mem_out*.png

@@ -62,7 +62,7 @@ def ray_init(num_cpus=60, shutdown=True):
     kwargs = {}
     if not shutdown:
         kwargs['ignore_reinit_error'] = True
-    return ray.init(num_cpus=num_cpus * 2,
+    return ray.init(num_cpus=num_cpus * 2, log_to_driver=False,
             temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus,}, **kwargs)
 
 
@@ -316,7 +316,7 @@ def main(_run=None):
             verbose=True,
             name="adversarial_tune_fine",
             num_samples=300,
-            checkpoint_freq=10,
+            checkpoint_freq=0, # checkpoints done by the function itself
             #scheduler=custom_scheduler,
             resources_per_trial={"custom_resources": {"tune_cpu": 4}},
             queue_trials=True,
