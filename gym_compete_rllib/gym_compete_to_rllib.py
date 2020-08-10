@@ -24,6 +24,7 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         if player_names is None:
             player_names = ["player_%d" % i for i in range(1, 1 + len(env.action_space))]
         self.player_names = player_names
+        self.n_policies = 2
         self._env = env
         
         self.reset_dones()
@@ -182,7 +183,6 @@ def gym_compete_env_with_video(env_name, directory=None):
     return env
 
 env_name = 'multicomp/YouShallNotPassHumans-v0'
-env_name_rllib = env_name.split('/')[1] + '_rllib'
 created_envs = []
 
 def create_env(config=None, env_name=env_name):
@@ -193,4 +193,4 @@ def create_env(config=None, env_name=env_name):
         env = gym.make(env_name)
     created_envs.append(env)
     return GymCompeteToRLLibAdapter(lambda: env)
-register_env(env_name_rllib, create_env)
+register_env("multicomp", create_env)
