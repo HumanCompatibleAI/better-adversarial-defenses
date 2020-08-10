@@ -21,11 +21,13 @@ def get_default_config():
     config['framework'] = 'tfe'
 
     config['_train_policies'] = ['player_1']
-    config['_policy_cls'] = PPOTFPolicy
     config['_call'] = {}
-    config['_call']['trainer'] = PPOTrainer
+    config['_trainer'] = "PPO"
+    config['_policy'] = "PPO"
     config['_call']['checkpoint_freq'] = 0
     config['_num_workers_tf'] = 32
+    config['_train_steps'] = 99999999
+
 
     return config
 
@@ -38,7 +40,6 @@ def get_config_coarse():
     config['lr'] = tune.loguniform(1e-5, 1e-2, 10)
     config['sgd_minibatch_size'] = tune.loguniform(512, 65536, 2)
     config['num_sgd_iter'] = tune.uniform(1, 30)
-    config['train_steps'] = 99999999
     config['rollout_fragment_length'] = tune.loguniform(200, 5000, 2)
     config['num_workers'] = 4
 
@@ -69,10 +70,8 @@ def get_config_fine():
     config['lr'] = tune.loguniform(1e-5, 1e-3, 10)
     config['sgd_minibatch_size'] = tune.loguniform(1000, 65536, 2)
     config['num_sgd_iter'] = tune.uniform(3, 30)
-    config['train_steps'] = 99999999
     config['rollout_fragment_length'] = tune.loguniform(2000, 5000, 2)
     config['num_workers'] = 4
-    config['use_gpu'] = False
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
@@ -91,10 +90,8 @@ def get_config_test():
     config['lr'] = 1e-4
     config['sgd_minibatch_size'] = 128
     config['num_sgd_iter'] = 2
-    config['train_steps'] = 99999999
     config['rollout_fragment_length'] = 200
     config['num_workers'] = 4
-    config['use_gpu'] = False
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
@@ -105,9 +102,12 @@ CONFIGS = {'test': get_config_test(),
            'coarse': get_config_coarse(),
            'fine': get_config_fine()}
 
+TRAINERS = {'PPO': PPOTrainer}
+POLICIES = {'PPO': PPOTFPolicy}
+
 
 def get_agent_config(agent_id, which, obs_space, act_space, config):
-    agent_config_pretrained = (config['_policy_cls'], obs_space, act_space, {
+    agent_config_pretrained = (POLICIES[config['_policy']], obs_space, act_space, {
         'model': {
             "custom_model": "GymCompetePretrainedModel",
             "custom_model_config": {
@@ -121,7 +121,7 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
         "framework": config['framework'],
     })
 
-    agent_config_from_scratch = (config['_policy_cls'], obs_space, act_space, {
+    agent_config_from_scratch = (POLICIES[config['_policy']], obs_space, act_space, {
         "model": {
             "use_lstm": False,
             "fcnet_hiddens": [64, 64],

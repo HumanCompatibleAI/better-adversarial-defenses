@@ -14,7 +14,8 @@ from ray import tune
 from ray.tune.logger import pretty_print
 
 # trials configuration
-from config import CONFIGS, get_agent_config
+from gym_compete_rllib.gym_compete_to_rllib import create_env
+from config import CONFIGS, TRAINERS, get_agent_config
 
 # parser for main()
 parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
@@ -44,6 +45,9 @@ def build_trainer_config(config):
 
     # creating policies
     policy_template = "player_%d"
+
+    print(config)
+
     policies = {policy_template % i: get_agent_config(agent_id=i, which=config['_policies'][i],
                                                       config=config,
                                                       obs_space=obs_space, act_space=act_space)
@@ -62,7 +66,8 @@ def build_trainer_config(config):
         assert k in policies.keys()
 
     rl_config = {
-        "env": config['_env_fcn'],
+        "env": config['_env_name_rllib'],
+        "env_config": config['_env'],
         "multiagent": {
             "policies_to_train": config['_train_policies'],
             "policies": policies,
@@ -82,7 +87,7 @@ def build_trainer_config(config):
     }
 
     # filling in the rest of variables
-    for k, v in config:
+    for k, v in config.items():
         if k.startswith('_'): continue
         rl_config[k] = v
 
@@ -98,7 +103,7 @@ def train_iteration_process(pickle_path, ray_init=True):
     if ray_init:
         ray.init(address=config['_redis_address'])
     rl_config = build_trainer_config(config=config)
-    trainer = config['_trainer'](config=rl_config)
+    trainer = TRAINERS[config['_trainer']](config=rl_config)
     if checkpoint:
         trainer.restore(checkpoint)
     results = trainer.train()
@@ -124,7 +129,8 @@ def train_one(config, checkpoint=None, do_track=True):
         pickle.dump([checkpoint, config], open(pickle_path, 'wb'))
         # overhead doesn't seem significant!
         subprocess.run(
-            "python %s --one_trial %s 2>&1 > %s" % (config['main_filename'], pickle_path, pickle_path + '.err'),
+            "python %s --from_pickled_config %s 2>&1 > %s" % (config['_main_filename'], pickle_path,
+                                                              pickle_path + '.err'),
             shell=True)
         # train_iteration_process(pickle_path, ray_init=False)
         os.unlink(pickle_path)
@@ -132,6 +138,7 @@ def train_one(config, checkpoint=None, do_track=True):
             results = pickle.load(open(pickle_path_ans, 'rb'))
             os.unlink(pickle_path_ans)
         except:
+            print(open(pickle_path + '.err', 'r').read())
             raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
         return results
 
@@ -147,7 +154,7 @@ def train_one(config, checkpoint=None, do_track=True):
         else:
             print(pretty_print(results))
 
-        if iteration > config['train_steps']:
+        if iteration > config['_train_steps']:
             return
 
 
@@ -160,8 +167,6 @@ def run_tune(config_name=None):
 
     config['_main_filename'] = os.path.realpath(__file__)
     config['_redis_address'] = cluster_info['redis_address']
-    call = config['_call']
-    del config['call']
 
     analysis = tune.run(
         train_one,
@@ -175,8 +180,10 @@ def run_tune(config_name=None):
 if __name__ == '__main__':
     args = parser.parse_args()
     if args.from_pickled_config:
-        train_iteration_process(pickle_path=args.one_trial)
+        train_iteration_process(pickle_path=args.from_pickled_config)
     elif args.tune:
         run_tune(config_name=args.tune)
+    else:
+        parser.print_help()
 
     sys.exit(0)
