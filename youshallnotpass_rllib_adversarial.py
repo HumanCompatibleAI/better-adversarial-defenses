@@ -18,8 +18,6 @@ from ray.tune.schedulers import ASHAScheduler
 
 from gym_compete_rllib.gym_compete_to_rllib import env_name, create_env, env_name_rllib
 
-# os.environ['DISPLAY'] = ':0'
-
 tf.compat.v1.enable_eager_execution()
 
 # ex = Experiment("youshallnotpass_learned_adversary_vs_zoo", interactive=True)
@@ -154,41 +152,26 @@ def build_trainer_config(train_policies, config, num_workers=4, use_gpu=True, nu
 
 
 def train_iteration_process(pickle_path, ray_init=True):
-    print("Load pickle")
     checkpoint, config = pickle.load(open(pickle_path, 'rb'))
-    print("Ray init")
     if ray_init:
         ray.init(address=config['redis_address'])
-    # ray.init(num_cpus=5, include_dashboard=False)
-    print("Build config")
     rl_config = build_trainer_config(train_policies=config['train_policies'],
                                      config=config)
-    print("Create trainer")
     trainer = PPOTrainer(config=rl_config)
-    print("Restore")
     if checkpoint:
         trainer.restore(checkpoint)
-    print("Train")
     results = trainer.train()
-    print("Save")
     checkpoint = trainer.save()
     results['checkpoint_rllib'] = checkpoint
     results['trainer_iteration'] = trainer.iteration
     del results['config']
-    print("Dump")
     trainer.stop()
     pickle.dump(results, open(pickle_path + '.ans.pkl', 'wb'))
-    # ray.shutdown()
-    print("Done")
 
 
 def train_one(config, checkpoint=None, do_track=True):
-    print("Building trainer config...")
-    print("CONFIG", config)
-    print("CHECKPOINT", checkpoint)
     if not isinstance(checkpoint, str):
         checkpoint = None
-    restore_state = None
 
     print("Starting iterations...")
 
@@ -209,8 +192,6 @@ def train_one(config, checkpoint=None, do_track=True):
             raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
         return results
 
-    print("CHECKPOINT", str(checkpoint), config)
-
     while True:
         results = train_iteration(checkpoint, config)
         checkpoint = results['checkpoint_rllib']
@@ -221,7 +202,6 @@ def train_one(config, checkpoint=None, do_track=True):
             tune.report(**results)
         else:
             print(pretty_print(results))
-            print("Checkpoint", checkpoint)
 
         if iteration > config['train_steps']:
             return
@@ -278,7 +258,6 @@ def get_config_small():
 def main(_run=None):
     config = get_config_fine()
     cluster_info = ray_init()
-    print(cluster_info)
     custom_scheduler = ASHAScheduler(
         metric='policy_reward_mean/player_1',
         mode="max",
@@ -291,17 +270,6 @@ def main(_run=None):
 
     config['main_filename'] = sys.argv[0]
     config['redis_address'] = cluster_info['redis_address']
-
-    # config = {}
-    # config['train_batch_size'] = 320000
-    # config['lr'] = 3e-4
-    # config['num_sgd_iter'] = 20
-    # config['sgd_minibatch_size'] = 32768
-    # config['train_policies'] = ['player_1']
-    # config['train_steps'] = 10000
-
-    # train_one(config=config, do_track=False)
-    # return
 
     analysis = tune.run(
         train_one,
