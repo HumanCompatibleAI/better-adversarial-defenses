@@ -12,9 +12,9 @@ import ray
 import tensorflow as tf
 from ray import tune
 from ray.tune.logger import pretty_print
+from sacred.observers import MongoObserver
 
 # trials configuration
-from gym_compete_rllib.gym_compete_to_rllib import create_env
 from config import CONFIGS, TRAINERS, get_agent_config
 
 # parser for main()
@@ -31,7 +31,7 @@ def ray_init(num_cpus=60, shutdown=True):
     kwargs = {}
     if not shutdown:
         kwargs['ignore_reinit_error'] = True
-    return ray.init(num_cpus=num_cpus * 2, log_to_driver=False,
+    return ray.init(num_cpus=num_cpus * 2, # log_to_driver=False,
                     temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus, }, **kwargs)
 
 
@@ -45,8 +45,6 @@ def build_trainer_config(config):
 
     # creating policies
     policy_template = "player_%d"
-
-    print(config)
 
     policies = {policy_template % i: get_agent_config(agent_id=i, which=config['_policies'][i],
                                                       config=config,
@@ -91,15 +89,14 @@ def build_trainer_config(config):
         if k.startswith('_'): continue
         rl_config[k] = v
 
-    print("Configuration:")
-    pretty_print(rl_config)
-
     return rl_config
 
 
 def train_iteration_process(pickle_path, ray_init=True):
     """Load config from pickled file, run and pickle the results."""
-    checkpoint, config = pickle.load(open(pickle_path, 'rb'))
+    print(pickle_path, ray_init)
+    f = open(pickle_path, 'rb')
+    checkpoint, config = pickle.load(f)
     if ray_init:
         ray.init(address=config['_redis_address'])
     rl_config = build_trainer_config(config=config)
@@ -114,48 +111,74 @@ def train_iteration_process(pickle_path, ray_init=True):
     trainer.stop()
     pickle.dump(results, open(pickle_path + '.ans.pkl', 'wb'))
 
+def dict_to_sacred(ex, d, iteration, prefix=''):
+    """Log a dictionary to sacred."""
+    for k, v in d.items():
+        if isinstance(v, dict):
+            dict_to_sacred(ex, v, iteration, prefix=prefix + k + '/')
+        elif isinstance(v, float) or isinstance(v, int):
+            ex.log_scalar(prefix + k, v, iteration)
 
-def train_one(config, checkpoint=None, do_track=True):
-    """One trial with subprocesses for each iteration."""
-    if not isinstance(checkpoint, str):
-        checkpoint = None
+def train_one_with_sacred(config, checkpoint=None, do_track=True):
+    #print(config['_base_dir'])
+    #print(os.getcwd())
+    os.chdir(config['_base_dir'])
 
-    print("Starting iterations...")
+    # https://github.com/IDSIA/sacred/issues/492
+    from sacred import Experiment, SETTINGS
+    SETTINGS.CONFIG.READ_ONLY_CONFIG = False
 
-    def train_iteration(checkpoint, config):
-        """One training iteration with subprocess."""
-        pickle_path = '/tmp/' + str(uuid.uuid1()) + '.pkl'
-        pickle_path_ans = pickle_path + '.ans.pkl'
-        pickle.dump([checkpoint, config], open(pickle_path, 'wb'))
-        # overhead doesn't seem significant!
-        subprocess.run(
-            "python %s --from_pickled_config %s 2>&1 > %s" % (config['_main_filename'], pickle_path,
-                                                              pickle_path + '.err'),
-            shell=True)
-        # train_iteration_process(pickle_path, ray_init=False)
-        os.unlink(pickle_path)
-        try:
-            results = pickle.load(open(pickle_path_ans, 'rb'))
-            os.unlink(pickle_path_ans)
-        except:
-            print(open(pickle_path + '.err', 'r').read())
-            raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
-        return results
+    ex = Experiment(config['_call']['name'], base_dir=config['_base_dir'])
+    ex.observers.append(MongoObserver(db_name='chai'))
+    ex.add_source_file('config.py')
 
-    # running iterations
-    while True:
-        results = train_iteration(checkpoint, config)
-        checkpoint = results['checkpoint_rllib']
-        iteration = results['trainer_iteration']
-        print("Iteration %d done" % iteration)
+    ex.add_config(config=config, checkpoint=checkpoint, do_track=do_track, **config)
 
-        if do_track:
-            tune.report(**results)
-        else:
-            print(pretty_print(results))
+    @ex.main
+    def train_one(config, checkpoint=None, do_track=True):
+        """One trial with subprocesses for each iteration."""
+        if not isinstance(checkpoint, str):
+            checkpoint = None
 
-        if iteration > config['_train_steps']:
-            return
+        print("Starting iterations...")
+
+        def train_iteration(checkpoint, config):
+            """One training iteration with subprocess."""
+            pickle_path = '/tmp/' + str(uuid.uuid1()) + '.pkl'
+            pickle_path_ans = pickle_path + '.ans.pkl'
+            pickle.dump([checkpoint, config], open(pickle_path, 'wb'))
+            # overhead doesn't seem significant!
+            subprocess.run(
+                "python %s --from_pickled_config %s 2>&1 > %s" % (config['_main_filename'], pickle_path,
+                                                                  pickle_path + '.err'),
+                shell=True)
+            # train_iteration_process(pickle_path, ray_init=False)
+            try:
+                results = pickle.load(open(pickle_path_ans, 'rb'))
+                os.unlink(pickle_path)
+                os.unlink(pickle_path_ans)
+            except:
+                print(open(pickle_path + '.err', 'r').read())
+                raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
+            return results
+
+        # running iterations
+        while True:
+            results = train_iteration(checkpoint, config)
+            checkpoint = results['checkpoint_rllib']
+            iteration = results['trainer_iteration']
+            print("Iteration %d done" % iteration)
+            dict_to_sacred(ex, results, iteration)
+
+            if do_track:
+                tune.report(**results)
+            else:
+                print(pretty_print(results))
+
+            if iteration > config['_train_steps']:
+                return
+
+    return ex.run()
 
 
 def run_tune(config_name=None):
@@ -167,9 +190,10 @@ def run_tune(config_name=None):
 
     config['_main_filename'] = os.path.realpath(__file__)
     config['_redis_address'] = cluster_info['redis_address']
+    config['_base_dir'] = os.path.dirname(os.path.realpath(__file__))
 
     analysis = tune.run(
-        train_one,
+        train_one_with_sacred,
         config=config,
         verbose=True,
         queue_trials=True,

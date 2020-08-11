@@ -25,6 +25,7 @@ def get_default_config():
     config['_trainer'] = "PPO"
     config['_policy'] = "PPO"
     config['_call']['checkpoint_freq'] = 0
+    config['_call']['name'] = 'adversarial_youshallnotpass'
     config['_num_workers_tf'] = 32
     config['_train_steps'] = 99999999
 
