@@ -16,6 +16,9 @@ from sacred.observers import MongoObserver
 
 # trials configuration
 from config import CONFIGS, TRAINERS, get_agent_config
+import tensorflow as tf
+
+tf.compat.v2.enable_v2_behavior()
 
 # parser for main()
 parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
@@ -111,6 +114,7 @@ def train_iteration_process(pickle_path, ray_init=True):
     trainer.stop()
     pickle.dump(results, open(pickle_path + '.ans.pkl', 'wb'))
 
+
 def dict_to_sacred(ex, d, iteration, prefix=''):
     """Log a dictionary to sacred."""
     for k, v in d.items():
@@ -142,6 +146,23 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
 
         print("Starting iterations...")
 
+        global trainer
+        trainer = None
+
+        def train_iteration_inline(checkpoint, config):
+            """Load config from pickled file, run and pickle the results."""
+            global trainer
+            rl_config = build_trainer_config(config=config)
+            if trainer is None:
+                trainer = TRAINERS[config['_trainer']](config=rl_config)
+                if checkpoint:
+                    trainer.restore(checkpoint)
+            results = trainer.train()
+            checkpoint = trainer.save()
+            results['checkpoint_rllib'] = checkpoint
+            results['trainer_iteration'] = trainer.iteration
+            return results
+
         def train_iteration(checkpoint, config):
             """One training iteration with subprocess."""
             pickle_path = '/tmp/' + str(uuid.uuid1()) + '.pkl'
@@ -168,7 +189,10 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
             config_updated = config
             if config['_update_config']:
                 config_updated = config['_update_config'](config, iteration)
-            results = train_iteration(checkpoint, config_updated)
+            if config['_run_inline']:
+                results = train_iteration_inline(checkpoint, config_updated)
+            else:
+                results = train_iteration(checkpoint, config_updated)
             checkpoint = results['checkpoint_rllib']
             iteration = results['trainer_iteration']
             print("Iteration %d done" % iteration)

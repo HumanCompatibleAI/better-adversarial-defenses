@@ -15,11 +15,11 @@ def bursts_config(config, iteration):
 
     n_bursts = pretrain_time // (2 * burst_size)
 
-    print("Pretrain time: %d" % pretrain_time)
-    print("Evaluation time: %d" % evaluation_time)
-    print("Burst size", burst_size)
-    print("Number of bursts", n_bursts)
-    print("Total iterations (true)", n_bursts * burst_size * 2 + evaluation_time)
+    # print("Pretrain time: %d" % pretrain_time)
+    # print("Evaluation time: %d" % evaluation_time)
+    # print("Burst size", burst_size)
+    # print("Number of bursts", n_bursts)
+    # print("Total iterations (true)", n_bursts * burst_size * 2 + evaluation_time)
 
     train_policies = config_new['_train_policies']
 
@@ -67,6 +67,7 @@ def get_default_config():
     config['_num_workers_tf'] = 32
     config['_train_steps'] = 99999999
     config['_update_config'] = None
+    config['_run_inline'] = False
 
 
     return config
@@ -126,15 +127,17 @@ def get_config_test():
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = 128
+    config['train_batch_size'] = 4096
     config['lr'] = 1e-4
-    config['sgd_minibatch_size'] = 128
+    config['sgd_minibatch_size'] = 4096
     config['num_sgd_iter'] = 2
-    config['rollout_fragment_length'] = 200
+    config['rollout_fragment_length'] = 2048
     config['num_workers'] = 4
 
     # ['humanoid_blocker', 'humanoid'],
-    config['_train_policies'] = ['player_1']
+    config['_train_policies'] = []# ['player_1']
+    config['num_gpus'] = 1
+    #config['_run_inline'] = True
     return config
 
 
@@ -143,12 +146,12 @@ def get_config_test_bursts():
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = 128
+    config['train_batch_size'] = 4096
     config['lr'] = 1e-4
-    config['sgd_minibatch_size'] = 128
+    config['sgd_minibatch_size'] = 4096
     config['num_sgd_iter'] = 2
-    config['rollout_fragment_length'] = 200
-    config['num_workers'] = 4
+    config['rollout_fragment_length'] = 1500
+    config['num_workers'] = 10
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
