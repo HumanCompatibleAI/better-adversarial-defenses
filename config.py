@@ -2,7 +2,9 @@ from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from gym_compete_rllib.gym_compete_to_rllib import create_env
 from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.agents.ppo import APPOTrainer
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
+from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from copy import deepcopy
 
 def bursts_config(config, iteration):
@@ -47,7 +49,7 @@ def get_default_config():
     config = {}
 
     config["kl_coeff"] = 1.0
-    config["_num_workers_tf"] = 32
+    config["_num_workers_tf"] = 4
     config["use_gae"] = True
     config["num_gpus"] = 0
 
@@ -64,7 +66,6 @@ def get_default_config():
     config['_policy'] = "PPO"
     config['_call']['checkpoint_freq'] = 0
     config['_call']['name'] = 'adversarial_youshallnotpass'
-    config['_num_workers_tf'] = 32
     config['_train_steps'] = 99999999
     config['_update_config'] = None
     config['_run_inline'] = False
@@ -130,14 +131,20 @@ def get_config_test():
     config['train_batch_size'] = 4096
     config['lr'] = 1e-4
     config['sgd_minibatch_size'] = 4096
-    config['num_sgd_iter'] = 2
+    config['num_sgd_iter'] = 1
     config['rollout_fragment_length'] = 2048
-    config['num_workers'] = 4
+    config['num_workers'] = 5
 
     # ['humanoid_blocker', 'humanoid'],
-    config['_train_policies'] = []# ['player_1']
-    config['num_gpus'] = 1
+    config['_train_policies'] = ['player_1', 'player_2']
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "PPO"
+    config['_policy'] = "PPO"
+
     #config['_run_inline'] = True
+
+    config['_train_steps'] = 20
     return config
 
 
@@ -166,8 +173,10 @@ CONFIGS = {'test': get_config_test(),
            'fine': get_config_fine(),
            'test_burst': get_config_test_bursts()}
 
-TRAINERS = {'PPO': PPOTrainer}
-POLICIES = {'PPO': PPOTFPolicy}
+TRAINERS = {'PPO': PPOTrainer,
+            'APPO': APPOTrainer}
+POLICIES = {'PPO': PPOTFPolicy,
+            'APPO': AsyncPPOTFPolicy}
 
 
 def get_agent_config(agent_id, which, obs_space, act_space, config):

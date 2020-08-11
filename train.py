@@ -17,6 +17,7 @@ from sacred.observers import MongoObserver
 # trials configuration
 from config import CONFIGS, TRAINERS, get_agent_config
 import tensorflow as tf
+import json
 
 tf.compat.v2.enable_v2_behavior()
 
@@ -25,6 +26,8 @@ parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
 parser.add_argument('--from_pickled_config', type=str, help='Trial to run (if None, run tune)', default=None,
                     required=False)
 parser.add_argument('--tune', type=str, help='Run tune', default=None, required=False)
+parser.add_argument('--config_override', type=str, help='Config override json', default=None, required=False)
+
 
 
 def ray_init(num_cpus=60, shutdown=True):
@@ -34,7 +37,7 @@ def ray_init(num_cpus=60, shutdown=True):
     kwargs = {}
     if not shutdown:
         kwargs['ignore_reinit_error'] = True
-    return ray.init(num_cpus=num_cpus * 2, # log_to_driver=False,
+    return ray.init(num_cpus=num_cpus * 2, num_gpus=1, # log_to_driver=False,
                     temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus, }, **kwargs)
 
 
@@ -92,6 +95,8 @@ def build_trainer_config(config):
         if k.startswith('_'): continue
         rl_config[k] = v
 
+    print("Config:", pretty_print(rl_config))
+
     return rl_config
 
 
@@ -128,6 +133,8 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
     #print(os.getcwd())
     os.chdir(config['_base_dir'])
 
+    tf.compat.v2.enable_v2_behavior()
+
     # https://github.com/IDSIA/sacred/issues/492
     from sacred import Experiment, SETTINGS
     SETTINGS.CONFIG.READ_ONLY_CONFIG = False
@@ -152,8 +159,9 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
         def train_iteration_inline(checkpoint, config):
             """Load config from pickled file, run and pickle the results."""
             global trainer
-            rl_config = build_trainer_config(config=config)
+
             if trainer is None:
+                rl_config = build_trainer_config(config=config)
                 trainer = TRAINERS[config['_trainer']](config=rl_config)
                 if checkpoint:
                     trainer.restore(checkpoint)
@@ -209,7 +217,7 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
     return ex.run()
 
 
-def run_tune(config_name=None):
+def run_tune(config_name=None, config_override=None):
     """Call tune."""
     assert config_name in CONFIGS, "Wrong config %s" % str(list(CONFIGS.keys()))
     config = CONFIGS[config_name]
@@ -219,6 +227,11 @@ def run_tune(config_name=None):
     config['_main_filename'] = os.path.realpath(__file__)
     config['_redis_address'] = cluster_info['redis_address']
     config['_base_dir'] = os.path.dirname(os.path.realpath(__file__))
+
+    if config_override:
+        config_override = json.loads(config_override)
+        for k, v in config_override.items():
+            config[k] = v
 
     analysis = tune.run(
         train_one_with_sacred,
@@ -234,7 +247,7 @@ if __name__ == '__main__':
     if args.from_pickled_config:
         train_iteration_process(pickle_path=args.from_pickled_config)
     elif args.tune:
-        run_tune(config_name=args.tune)
+        run_tune(config_name=args.tune, config_override=args.config_override)
     else:
         parser.print_help()
 
