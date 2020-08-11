@@ -162,9 +162,13 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
                 raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
             return results
 
+        iteration = 0
         # running iterations
         while True:
-            results = train_iteration(checkpoint, config)
+            config_updated = config
+            if config['_update_config']:
+                config_updated = config['_update_config'](config, iteration)
+            results = train_iteration(checkpoint, config_updated)
             checkpoint = results['checkpoint_rllib']
             iteration = results['trainer_iteration']
             print("Iteration %d done" % iteration)
