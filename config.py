@@ -128,11 +128,11 @@ def get_config_test():
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = 4096
+    config['train_batch_size'] = 16384
     config['lr'] = 1e-4
-    config['sgd_minibatch_size'] = 4096
+    config['sgd_minibatch_size'] = 8192
     config['num_sgd_iter'] = 1
-    config['rollout_fragment_length'] = 2048
+    config['rollout_fragment_length'] = 4096
     config['num_workers'] = 5
 
     # ['humanoid_blocker', 'humanoid'],
@@ -144,7 +144,7 @@ def get_config_test():
 
     #config['_run_inline'] = True
 
-    config['_train_steps'] = 20
+    config['_train_steps'] = 10
     return config
 
 
