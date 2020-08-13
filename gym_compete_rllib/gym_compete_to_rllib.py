@@ -12,6 +12,12 @@ from ray.rllib.models import ModelCatalog
 # scaler for reward output for players
 REWARD_SCALER = 1. / 100
 
+
+def dct_to_float32(d):
+    """Convert dictionary values to float32."""
+    return {x: np.array(y, dtype=np.float32) for x, y in d.items()}
+
+
 class GymCompeteToRLLibAdapter(MultiAgentEnv):
     """Takes gym_compete env and makes a multi-agent RLLib env."""
 
@@ -45,9 +51,9 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
 
     def reset(self):
         observations = self._env.reset()
-        return self.pack_array(observations)
+        return dct_to_float32(self.pack_array(observations))
 
-    def step(self, action_dict, reward_scaler=REWARD_SCALER):
+    def step(self, action_dict, reward_scaler=REWARD_SCALER):        
         default_action = np.zeros(self.observation_space.shape)
         a1a2 = self.unpack_dict(action_dict, default_action)
         o1o2, r1r2, done, i1i2 = self._env.step(a1a2)
@@ -74,7 +80,10 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         # for adversarial training
         if 'player_1' in rew:
             rew['player_1'] = -infos['player_2']['reward_remaining'] * reward_scaler
-
+            
+        rew = dct_to_float32(rew)
+        obs = dct_to_float32(obs)
+        
         return obs, rew, dones, infos
 
     @property
@@ -103,8 +112,8 @@ class KerasModelModel(TFModelV2):
     def forward(self, input_dict, state, seq_lens):
         obs = input_dict["obs"]
         model_out = tf.cast(self.policy_net(obs), tf.float32)
-        self._value_out = tf.cast(self.value_net(obs), tf.float32)
-        self._value_out = self._value_out[0] * REWARD_SCALER
+        self._value_out = tf.cast(self.value_net(obs), tf.float32)[:, 0]
+        self._value_out = self._value_out * REWARD_SCALER
         return model_out, state
 
     def value_function(self):
