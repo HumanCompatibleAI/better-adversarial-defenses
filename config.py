@@ -69,7 +69,8 @@ def get_default_config():
     config['_train_steps'] = 99999999
     config['_update_config'] = None
     config['_run_inline'] = False
-
+    
+    config['num_envs_per_worker'] = 4
 
     return config
 
@@ -128,12 +129,14 @@ def get_config_test():
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = 16384
+    config['train_batch_size'] = 2048
     config['lr'] = 1e-4
-    config['sgd_minibatch_size'] = 8192
+    config['sgd_minibatch_size'] = 512
     config['num_sgd_iter'] = 1
-    config['rollout_fragment_length'] = 4096
-    config['num_workers'] = 5
+    config['rollout_fragment_length'] = 128
+    config['num_workers'] = 4
+    
+    config['num_envs_per_worker'] = 4
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1', 'player_2']
@@ -142,9 +145,35 @@ def get_config_test():
     config['_trainer'] = "PPO"
     config['_policy'] = "PPO"
 
-    #config['_run_inline'] = True
+    config['_run_inline'] = True
 
     config['_train_steps'] = 10
+    return config
+
+
+def get_config_test_appo():
+    """One trial APPO."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 2048
+    config['lr'] = 1e-4
+    config['num_sgd_iter'] = 1
+    #config['rollout_fragment_length'] = 128
+    config['num_workers'] = 0
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1', 'player_2']
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "APPO"
+    config['_policy'] = "APPO"
+
+    config['_run_inline'] = True
+
+    config['_train_steps'] = 10
+    
+    #config['num_envs_per_worker'] = 1
     return config
 
 
@@ -199,6 +228,8 @@ CONFIGS = {'test': get_config_test(),
            'fine': get_config_fine(),
            'test_burst': get_config_test_bursts(),
            'burst': get_config_bursts(),
+           'test_appo': get_config_test_appo(),
+           
            }
 
 TRAINERS = {'PPO': PPOTrainer,
