@@ -30,7 +30,7 @@ parser.add_argument('--config_override', type=str, help='Config override json', 
 
 
 
-def ray_init(num_cpus=60, shutdown=True):
+def ray_init(num_cpus=28, shutdown=True):
     """Initialize ray."""
     if shutdown:
         ray.shutdown()
