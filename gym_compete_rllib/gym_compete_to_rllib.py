@@ -9,6 +9,8 @@ import tensorflow as tf
 import gym_compete
 from ray.rllib.models import ModelCatalog
 
+# scaler for reward output for players
+REWARD_SCALER = 1. / 100
 
 class GymCompeteToRLLibAdapter(MultiAgentEnv):
     """Takes gym_compete env and makes a multi-agent RLLib env."""
@@ -45,7 +47,7 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         observations = self._env.reset()
         return self.pack_array(observations)
 
-    def step(self, action_dict, reward_scaler=1. / 100):
+    def step(self, action_dict, reward_scaler=REWARD_SCALER):
         default_action = np.zeros(self.observation_space.shape)
         a1a2 = self.unpack_dict(action_dict, default_action)
         o1o2, r1r2, done, i1i2 = self._env.step(a1a2)
@@ -102,7 +104,7 @@ class KerasModelModel(TFModelV2):
         obs = input_dict["obs"]
         model_out = tf.cast(self.policy_net(obs), tf.float32)
         self._value_out = tf.cast(self.value_net(obs), tf.float32)
-        self._value_out = self._value_out[0]
+        self._value_out = self._value_out[0] * REWARD_SCALER
         return model_out, state
 
     def value_function(self):
