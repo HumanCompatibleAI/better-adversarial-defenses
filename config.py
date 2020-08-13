@@ -178,7 +178,7 @@ def get_config_bursts():
     config['sgd_minibatch_size'] = 22627
     config['num_sgd_iter'] = 5
     config['rollout_fragment_length'] = 2865
-    config['num_workers'] = 8
+    config['num_workers'] = 4
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
