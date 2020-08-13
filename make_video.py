@@ -1,6 +1,8 @@
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-from youshallnotpass_rllib_adversarial import PPOTrainer, build_trainer_config, get_config_small, created_envs, ray_init
+from gym_compete_rllib.gym_compete_to_rllib import created_envs
+from train import build_trainer_config, ray_init
+from config import PPOTrainer, get_config_test
 import pickle, json, codecs
 import argparse
 from tqdm import tqdm
@@ -20,9 +22,9 @@ parser.add_argument('--no_video', type=bool, default=False,
 
 args = parser.parse_args()
 
-config = get_config_small()
-config['train_policies'] = []
-config['train_steps'] = args.steps
+config = get_config_test()
+config['_train_policies'] = []
+config['_train_steps'] = args.steps
 config['train_batch_size'] = 256
 config['sgd_minibatch_size'] = 256
 config['num_sgd_iter'] = 1
@@ -31,20 +33,23 @@ config['lr'] = 0
 
 print("Args:", args)
 
-env_config = {'with_video': not args.no_video}
+config['_env']['with_video'] = not args.no_video
+config['_load_normal'] = args.load_normal
+
+config['num_gpus'] = 0
 
 num_workers = 0 if not args.no_video else 5
 
-rl_config = build_trainer_config(train_policies=config['train_policies'],
-                                 config=config, num_workers=num_workers, env_config=env_config,
-                                 use_gpu=False, load_normal=args.load_normal)
+config['num_workers'] = num_workers
+
+rl_config = build_trainer_config(config=config)
 print("Config", rl_config)
 trainer = PPOTrainer(config=rl_config)
 trainer.restore(args.checkpoint)
 
 stats = []
 
-for _ in tqdm(range(config['train_steps'])):
+for _ in tqdm(range(config['_train_steps'])):
     stats = trainer.train()['hist_stats']['policy_player_1_reward']
     print(stats)
     
