@@ -11,7 +11,7 @@ def bursts_config(config, iteration):
 
     pretrain_time = config['_train_steps'] // 2
     evaluation_time = config['_train_steps'] // 2
-    burst_size = config['_burst_size']
+    burst_size = int(config['_burst_size'])
 
     n_bursts = pretrain_time // (2 * burst_size)
 
@@ -161,10 +161,38 @@ def get_config_test_bursts():
     return config
 
 
+def get_config_bursts():
+    """One trial with bursts."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42879
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22627
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2865
+    config['num_workers'] = 8
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_update_config'] = bursts_config
+    config['_train_steps'] = 9999999999
+    config['_burst_size'] = tune.loguniform(1, 500, 10)
+
+    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_bursts"
+    config['_call']['num_samples'] = 300
+    return config
+
+
 CONFIGS = {'test': get_config_test(),
            'coarse': get_config_coarse(),
            'fine': get_config_fine(),
-           'test_burst': get_config_test_bursts()}
+           'test_burst': get_config_test_bursts(),
+           'burst': get_config_bursts(),
+           }
 
 TRAINERS = {'PPO': PPOTrainer}
 POLICIES = {'PPO': PPOTFPolicy}

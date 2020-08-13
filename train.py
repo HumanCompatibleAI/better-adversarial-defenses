@@ -27,7 +27,7 @@ parser.add_argument('--from_pickled_config', type=str, help='Trial to run (if No
 parser.add_argument('--tune', type=str, help='Run tune', default=None, required=False)
 
 
-def ray_init(num_cpus=60, shutdown=True):
+def ray_init(num_cpus=28, shutdown=True):
     """Initialize ray."""
     if shutdown:
         ray.shutdown()
