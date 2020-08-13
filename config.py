@@ -167,7 +167,6 @@ def get_config_test_appo():
     config['num_gpus'] = 0
 
     config['_trainer'] = "APPO"
-    config['_policy'] = "APPO"
 
     config['_run_inline'] = True
 
@@ -194,6 +193,32 @@ def get_config_test_bursts():
     config['_update_config'] = bursts_config
     config['_train_steps'] = 1000000
     config['_burst_size'] = 2
+    return config
+
+
+def get_config_victim_recover():
+    """Victim recovers from a trained adversary."""
+    # try changing learning rate
+    config = get_default_config()
+    
+    config['_checkpoint_restore'] = './checkpoint-adv-67'
+
+    config['train_batch_size'] = 42879
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22627
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2865
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_2']
+    config['_train_steps'] = 9999999999
+
+    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_recover"
+    config['_call']['num_samples'] = 10
     return config
 
 
@@ -229,8 +254,8 @@ CONFIGS = {'test': get_config_test(),
            'test_burst': get_config_test_bursts(),
            'burst': get_config_bursts(),
            'test_appo': get_config_test_appo(),
-           
-           }
+           'victim_recover': get_config_victim_recover(),
+          }
 
 TRAINERS = {'PPO': PPOTrainer,
             'APPO': APPOTrainer}
@@ -239,7 +264,7 @@ POLICIES = {'PPO': PPOTFPolicy,
 
 
 def get_agent_config(agent_id, which, obs_space, act_space, config):
-    agent_config_pretrained = (POLICIES[config['_policy']], obs_space, act_space, {
+    agent_config_pretrained = (POLICIES[config['_trainer']], obs_space, act_space, {
         'model': {
             "custom_model": "GymCompetePretrainedModel",
             "custom_model_config": {
@@ -253,7 +278,7 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
         "framework": config['framework'],
     })
 
-    agent_config_from_scratch = (POLICIES[config['_policy']], obs_space, act_space, {
+    agent_config_from_scratch = (POLICIES[config['_trainer']], obs_space, act_space, {
         "model": {
             "use_lstm": False,
             "fcnet_hiddens": [64, 64],

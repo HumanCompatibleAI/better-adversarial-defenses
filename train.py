@@ -155,6 +155,9 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
 
         global trainer
         trainer = None
+        
+        if '_checkpoint_restore' in config:
+            checkpoint = config['_checkpoint_restore']
 
         def train_iteration_inline(checkpoint, config):
             """Load config from pickled file, run and pickle the results."""
