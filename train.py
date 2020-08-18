@@ -8,6 +8,7 @@ import subprocess
 import sys
 import uuid
 import time
+from copy import deepcopy
 
 import ray
 import logging
@@ -115,9 +116,15 @@ def train_iteration_process(pickle_path):
     checkpoint, config = pickle.load(f)
     ray_init(shutdown=False, address=config['_redis_address'], tmp_dir=config['_tmp_dir'])
     rl_config = build_trainer_config(config=config)
-    trainer = TRAINERS[config['_trainer']](config=rl_config)
+    get_trainer = lambda: TRAINERS[config['_trainer']](config=rl_config)
+    trainer = get_trainer()
     if checkpoint:
         trainer.restore(checkpoint)
+    iteration = trainer.iteration
+    if config['_checkpoint_restore'] and iteration == 0:
+        trainer_1 = get_trainer()
+        trainer_1.restore(config['_checkpoint_restore'])
+        trainer.set_weights(deepcopy(trainer_1.get_weights()))
     results = trainer.train()
     checkpoint = trainer.save()
     results['checkpoint_rllib'] = checkpoint
@@ -158,9 +165,6 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
         global trainer
         trainer = None
         
-        if '_checkpoint_restore' in config:
-            checkpoint = (config['_checkpoint_restore'], 'weight_only')
-
         def train_iteration(checkpoint, config):
             """One training iteration with subprocess."""
             pickle_path = config['_tmp_dir'] + '/' + str(uuid.uuid1()) + '.pkl'

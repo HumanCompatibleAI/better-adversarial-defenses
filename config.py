@@ -273,7 +273,7 @@ def get_config_victim_recover():
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
     config['_call']['name'] = "adversarial_tune_recover"
-    config['_call']['num_samples'] = 10
+    config['_call']['num_samples'] = 4
     return config
 
 
