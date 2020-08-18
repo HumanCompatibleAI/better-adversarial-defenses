@@ -7,12 +7,16 @@ import pickle
 import subprocess
 import sys
 import uuid
+import time
 
 import ray
+import logging
 import tensorflow as tf
 from ray import tune
 from ray.tune.logger import pretty_print
 from sacred.observers import MongoObserver
+import multiprocessing
+
 
 # trials configuration
 from config import CONFIGS, TRAINERS, get_agent_config
@@ -26,19 +30,24 @@ parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
 parser.add_argument('--from_pickled_config', type=str, help='Trial to run (if None, run tune)', default=None,
                     required=False)
 parser.add_argument('--tune', type=str, help='Run tune', default=None, required=False)
+parser.add_argument('--tmp_dir', type=str, help='Temporary directory', default='/tmp', required=False)
 parser.add_argument('--config_override', type=str, help='Config override json', default=None, required=False)
 
 
-
-def ray_init(num_cpus=28, shutdown=True):
+def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
     """Initialize ray."""
+    num_cpus = multiprocessing.cpu_count()
+
     if shutdown:
         ray.shutdown()
-    kwargs = {}
     if not shutdown:
         kwargs['ignore_reinit_error'] = True
-    return ray.init(num_cpus=num_cpus * 2, num_gpus=1, # log_to_driver=False,
-                    temp_dir='/scratch/sergei/tmp', resources={'tune_cpu': num_cpus, }, **kwargs)
+    if 'address' not in kwargs:
+        kwargs['num_cpus'] = num_cpus * 2
+        kwargs['resources'] = {'tune_cpu': num_cpus}
+        kwargs['temp_dir'] = tmp_dir
+
+    return ray.init(log_to_driver=False, logging_level=logging.ERROR, **kwargs)
 
 
 def build_trainer_config(config):
@@ -95,18 +104,16 @@ def build_trainer_config(config):
         if k.startswith('_'): continue
         rl_config[k] = v
 
-    print("Config:", pretty_print(rl_config))
+    # print("Config:", pretty_print(rl_config))
 
     return rl_config
 
 
-def train_iteration_process(pickle_path, ray_init=True):
+def train_iteration_process(pickle_path):
     """Load config from pickled file, run and pickle the results."""
-    print(pickle_path, ray_init)
     f = open(pickle_path, 'rb')
     checkpoint, config = pickle.load(f)
-    if ray_init:
-        ray.init(address=config['_redis_address'])
+    ray_init(shutdown=False, address=config['_redis_address'], tmp_dir=config['_tmp_dir'])
     rl_config = build_trainer_config(config=config)
     trainer = TRAINERS[config['_trainer']](config=rl_config)
     if checkpoint:
@@ -129,8 +136,6 @@ def dict_to_sacred(ex, d, iteration, prefix=''):
             ex.log_scalar(prefix + k, v, iteration)
 
 def train_one_with_sacred(config, checkpoint=None, do_track=True):
-    #print(config['_base_dir'])
-    #print(os.getcwd())
     os.chdir(config['_base_dir'])
 
     tf.compat.v2.enable_v2_behavior()
@@ -142,7 +147,6 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
     ex = Experiment(config['_call']['name'], base_dir=config['_base_dir'])
     ex.observers.append(MongoObserver(db_name='chai'))
     ex.add_source_file('config.py')
-
     ex.add_config(config=config, checkpoint=checkpoint, do_track=do_track, **config)
 
     @ex.main
@@ -151,55 +155,36 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
         if not isinstance(checkpoint, str):
             checkpoint = None
 
-        print("Starting iterations...")
-
         global trainer
         trainer = None
         
         if '_checkpoint_restore' in config:
             checkpoint = (config['_checkpoint_restore'], 'weight_only')
 
-        def train_iteration_inline(checkpoint, config):
-            """Load config from pickled file, run and pickle the results."""
-            global trainer
-
-            if trainer is None:
-                rl_config = build_trainer_config(config=config)
-                trainer = TRAINERS[config['_trainer']](config=rl_config)
-                if checkpoint:
-                    if isinstance(checkpoint, tuple):
-                        trainer_old = TRAINERS[config['_trainer']](config=rl_config)
-                        trainer_old.restore(checkpoint[0])
-                        from copy import deepcopy
-                        trainer.set_weights(deepcopy(trainer_old.get_weights()))
-                        #for policy in trainer_old.config['multiagent']['policies'].keys():
-                        #    from copy import deepcopy
-                        #    trainer.get_policy(policy).set_weights(deepcopy(trainer_old.get_policy(policy).get_weights()))
-                        #    print("Set weights", policy)
-                    else:
-                        trainer.restore(checkpoint)
-            results = trainer.train()
-            checkpoint = trainer.save()
-            results['checkpoint_rllib'] = checkpoint
-            results['trainer_iteration'] = trainer.iteration
-            return results
-
         def train_iteration(checkpoint, config):
             """One training iteration with subprocess."""
-            pickle_path = '/tmp/' + str(uuid.uuid1()) + '.pkl'
+            pickle_path = config['_tmp_dir'] + '/' + str(uuid.uuid1()) + '.pkl'
             pickle_path_ans = pickle_path + '.ans.pkl'
             pickle.dump([checkpoint, config], open(pickle_path, 'wb'))
             # overhead doesn't seem significant!
-            subprocess.run(
-                "python %s --from_pickled_config %s 2>&1 > %s" % (config['_main_filename'], pickle_path,
-                                                                  pickle_path + '.err'),
-                shell=True)
-            # train_iteration_process(pickle_path, ray_init=False)
+            if config['_run_inline']:
+                train_iteration_process(pickle_path)
+            elif config['_log_error']:
+                subprocess.run(
+                    "python %s --from_pickled_config %s 2>&1 > %s" % (config['_main_filename'], pickle_path,
+                                                                      pickle_path + '.err'),
+                    shell=True)
+            else:
+                subprocess.run(
+                    "python %s --from_pickled_config %s" % (config['_main_filename'], pickle_path),
+                    shell=True)
             try:
                 results = pickle.load(open(pickle_path_ans, 'rb'))
                 os.unlink(pickle_path)
                 os.unlink(pickle_path_ans)
+                os.unlink(pickle_path + '.err')
             except:
+                time.sleep(5)
                 print(open(pickle_path + '.err', 'r').read())
                 raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
             return results
@@ -210,10 +195,7 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
             config_updated = config
             if config['_update_config']:
                 config_updated = config['_update_config'](config, iteration)
-            if config['_run_inline']:
-                results = train_iteration_inline(checkpoint, config_updated)
-            else:
-                results = train_iteration(checkpoint, config_updated)
+            results = train_iteration(checkpoint, config_updated)
             checkpoint = results['checkpoint_rllib']
             iteration = results['trainer_iteration']
             print("Iteration %d done" % iteration)
@@ -230,16 +212,17 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
     return ex.run()
 
 
-def run_tune(config_name=None, config_override=None):
+def run_tune(config_name=None, config_override=None, tmp_dir=None):
     """Call tune."""
     assert config_name in CONFIGS, "Wrong config %s" % str(list(CONFIGS.keys()))
     config = CONFIGS[config_name]
-    cluster_info = ray_init()
+    cluster_info = ray_init(tmp_dir=tmp_dir)
     tf.keras.backend.set_floatx('float32')
 
     config['_main_filename'] = os.path.realpath(__file__)
     config['_redis_address'] = cluster_info['redis_address']
     config['_base_dir'] = os.path.dirname(os.path.realpath(__file__))
+    config['_tmp_dir'] = tmp_dir
 
     if config_override:
         config_override = json.loads(config_override)
@@ -260,7 +243,7 @@ if __name__ == '__main__':
     if args.from_pickled_config:
         train_iteration_process(pickle_path=args.from_pickled_config)
     elif args.tune:
-        run_tune(config_name=args.tune, config_override=args.config_override)
+        run_tune(config_name=args.tune, config_override=args.config_override, tmp_dir=args.tmp_dir)
     else:
         parser.print_help()
 

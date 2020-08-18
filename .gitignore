@@ -3,6 +3,7 @@ src
 *_log.txt
 video/
 out.txt
+tmp*.py
 *.mp4
 mem_out*.txt
 mem_out*.png
