@@ -71,6 +71,7 @@ def get_default_config():
     config['_run_inline'] = False
     
     config['num_envs_per_worker'] = 4
+    config['_log_error'] = True
 
     return config
 
@@ -103,24 +104,78 @@ def get_config_coarse():
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
 
+def sample_int(obj):
+    """Convert tune distribution to integer."""
+    return tune.sample_from(lambda _: round(obj.func(_)))
 
 def get_config_fine():
     """Search in a smaller range."""
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = tune.loguniform(2048, 150000, 2)
+
+    config['train_batch_size'] = sample_int(tune.loguniform(2048, 150000, 2))
     config['lr'] = tune.loguniform(1e-5, 1e-3, 10)
-    config['sgd_minibatch_size'] = tune.loguniform(1000, 65536, 2)
-    config['num_sgd_iter'] = tune.uniform(3, 30)
-    config['rollout_fragment_length'] = tune.loguniform(2000, 5000, 2)
+    config['sgd_minibatch_size'] = sample_int(tune.loguniform(1000, 65536, 2))
+    config['num_sgd_iter'] = sample_int(tune.uniform(3, 30))
+    config['rollout_fragment_length'] = sample_int(tune.loguniform(2000, 5000, 2))
     config['num_workers'] = 4
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_fine",
+    config['_call']['name'] = "adversarial_tune_fine"
     config['_call']['num_samples'] = 300
+    return config
+
+
+def get_config_fine2():
+    """Search in a smaller range."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = sample_int(tune.loguniform(2048, 50000, 2))
+    config['lr'] = tune.loguniform(1e-5, 1e-3, 10)
+    config['sgd_minibatch_size'] = sample_int(tune.loguniform(1000, 25000, 2))
+    config['num_sgd_iter'] = sample_int(tune.uniform(3, 30))
+    config['rollout_fragment_length'] = sample_int(tune.loguniform(2000, 5000, 2))
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_fine2"
+    config['_call']['num_samples'] = 300
+    
+    #config['_run_inline'] = True
+    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+
+    return config
+
+
+def get_config_best():
+    """Search in a smaller range."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42880
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22628
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2866
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_best"
+    config['_call']['num_samples'] = 4
+    
+    #config['_run_inline'] = True
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+
     return config
 
 
@@ -255,6 +310,9 @@ CONFIGS = {'test': get_config_test(),
            'burst': get_config_bursts(),
            'test_appo': get_config_test_appo(),
            'victim_recover': get_config_victim_recover(),
+           'fine2': get_config_fine2(),
+           'best': get_config_best(),
+
           }
 
 TRAINERS = {'PPO': PPOTrainer,
