@@ -157,7 +157,7 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
         trainer = None
         
         if '_checkpoint_restore' in config:
-            checkpoint = config['_checkpoint_restore']
+            checkpoint = (config['_checkpoint_restore'], 'weight_only')
 
         def train_iteration_inline(checkpoint, config):
             """Load config from pickled file, run and pickle the results."""
@@ -167,7 +167,17 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
                 rl_config = build_trainer_config(config=config)
                 trainer = TRAINERS[config['_trainer']](config=rl_config)
                 if checkpoint:
-                    trainer.restore(checkpoint)
+                    if isinstance(checkpoint, tuple):
+                        trainer_old = TRAINERS[config['_trainer']](config=rl_config)
+                        trainer_old.restore(checkpoint[0])
+                        from copy import deepcopy
+                        trainer.set_weights(deepcopy(trainer_old.get_weights()))
+                        #for policy in trainer_old.config['multiagent']['policies'].keys():
+                        #    from copy import deepcopy
+                        #    trainer.get_policy(policy).set_weights(deepcopy(trainer_old.get_policy(policy).get_weights()))
+                        #    print("Set weights", policy)
+                    else:
+                        trainer.restore(checkpoint)
             results = trainer.train()
             checkpoint = trainer.save()
             results['checkpoint_rllib'] = checkpoint
