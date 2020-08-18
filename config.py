@@ -5,6 +5,7 @@ from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo import APPOTrainer
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
+from ray.rllib.agents.es import ESTrainer, ESTFPolicy
 from copy import deepcopy
 
 def bursts_config(config, iteration):
@@ -179,6 +180,29 @@ def get_config_best():
     return config
 
 
+def get_config_es():
+    """Run with random search."""
+    # try changing learning rate
+    config = get_default_config()
+    del config['kl_coeff']
+    del config['use_gae']
+
+    config['num_workers'] = 20
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_es"
+    config['_call']['num_samples'] = 1
+    config['_trainer'] = 'ES'
+    
+    #config['_run_inline'] = True
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+
+    return config
+
+
 def get_config_test():
     """One trial."""
     # try changing learning rate
@@ -312,13 +336,16 @@ CONFIGS = {'test': get_config_test(),
            'victim_recover': get_config_victim_recover(),
            'fine2': get_config_fine2(),
            'best': get_config_best(),
+           'es': get_config_es(),
 
           }
 
 TRAINERS = {'PPO': PPOTrainer,
-            'APPO': APPOTrainer}
+            'APPO': APPOTrainer,
+            'ES': ESTrainer,}
 POLICIES = {'PPO': PPOTFPolicy,
-            'APPO': AsyncPPOTFPolicy}
+            'APPO': AsyncPPOTFPolicy,
+            'ES': ESTFPolicy}
 
 
 def get_agent_config(agent_id, which, obs_space, act_space, config):
