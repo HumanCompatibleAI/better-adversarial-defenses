@@ -24,8 +24,6 @@ from config import CONFIGS, TRAINERS, get_agent_config
 import tensorflow as tf
 import json
 
-tf.compat.v2.enable_v2_behavior()
-
 # parser for main()
 parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
 parser.add_argument('--from_pickled_config', type=str, help='Trial to run (if None, run tune)', default=None,
@@ -121,7 +119,7 @@ def train_iteration_process(pickle_path):
     if checkpoint:
         trainer.restore(checkpoint)
     iteration = trainer.iteration
-    if config['_checkpoint_restore'] and iteration == 0:
+    if '_checkpoint_restore' in config and iteration == 0:
         trainer_1 = get_trainer()
         trainer_1.restore(config['_checkpoint_restore'])
         trainer.set_weights(deepcopy(trainer_1.get_weights()))
@@ -142,10 +140,13 @@ def dict_to_sacred(ex, d, iteration, prefix=''):
         elif isinstance(v, float) or isinstance(v, int):
             ex.log_scalar(prefix + k, v, iteration)
 
-def train_one_with_sacred(config, checkpoint=None, do_track=True):
+def train_one_with_sacred(config, checkpoint_dir=None):
+    do_track = True
+    checkpoint = checkpoint_dir
     os.chdir(config['_base_dir'])
 
-    tf.compat.v2.enable_v2_behavior()
+    if config['framework'] == 'tfe':
+        tf.compat.v2.enable_v2_behavior()
 
     # https://github.com/IDSIA/sacred/issues/492
     from sacred import Experiment, SETTINGS
@@ -184,9 +185,14 @@ def train_one_with_sacred(config, checkpoint=None, do_track=True):
                     shell=True)
             try:
                 results = pickle.load(open(pickle_path_ans, 'rb'))
-                os.unlink(pickle_path)
-                os.unlink(pickle_path_ans)
-                os.unlink(pickle_path + '.err')
+                def unlink_ignore_error(p):
+                    try:
+                        os.unlink(p)
+                    except:
+                        pass
+                unlink_ignore_error(pickle_path)
+                unlink_ignore_error(pickle_path_ans)
+                unlink_ignore_error(pickle_path + '.err')
             except:
                 time.sleep(5)
                 print(open(pickle_path + '.err', 'r').read())
