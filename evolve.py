@@ -1,3 +1,5 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 from gym_compete_rllib.gym_compete_to_rllib import create_env, MultiAgentToSingleAgent, model_to_callable
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
 from gym_compete_rllib.test_single_agent_env import episode
@@ -8,13 +10,14 @@ from matplotlib import pyplot as plt
 import ray
 from time import time
 import neat
+import pickle
 
 
 env_name = 'multicomp/YouShallNotPassHumans-v0'
 fc_config_filename = 'fc.config'
-num_workers = 10
-eval_episodes = 20
-population_size = 20
+num_workers = 64
+eval_episodes = 100
+population_size = 50
 
 ray.shutdown()
 info = ray.init(ignore_reinit_error=True, log_to_driver=False)
@@ -54,6 +57,8 @@ def evaluate_genomes(genomes, config):
     rs = np.mean(rs, axis=1)
     for (gid, g), r in zip(genomes, rs):
         g.fitness = r
+    global stats, p
+    pickle.dump([stats, p], open('evolve_result.pkl', 'wb'))
     return rs
 
 
@@ -83,4 +88,6 @@ stats = neat.StatisticsReporter()
 p.add_reporter(stats)
 p.add_reporter(neat.Checkpointer(5))
 
-winner = p.run(evaluate_genomes, 33)
+winner = p.run(evaluate_genomes, 99999)
+
+pickle.dump([stats, p], open('evolve_result.pkl', 'wb'))
