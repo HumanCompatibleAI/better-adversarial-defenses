@@ -137,10 +137,10 @@ def train_eval(
     if random_seed is not None:
       tf.compat.v1.set_random_seed(random_seed)
     
-#     tf_env = (
-#        parallel_py_environment.ParallelPyEnvironment(
-#            [lambda: env_load_fn(env_name)] * num_parallel_environments))
-    tf_env = env_load_fn(env_name)
+    tf_env = (
+       parallel_py_environment.ParallelPyEnvironment(
+           [lambda: env_load_fn(env_name)] * num_parallel_environments))
+#     tf_env = env_load_fn(env_name)
         
     tf_env = tf_py_environment.TFPyEnvironment(tf_env)
     eval_tf_env = tf_py_environment.TFPyEnvironment(env_load_fn(env_name))

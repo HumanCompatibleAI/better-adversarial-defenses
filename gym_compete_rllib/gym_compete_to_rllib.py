@@ -21,7 +21,7 @@ def dct_to_float32(d):
 def model_to_callable(m):
     """Convert a Keras model to a callable for a single object."""
     def f(x):
-        return m.predict(np.array([x]))[0]
+        return m(np.array([x])).numpy()[0]
     return f
 
 
