@@ -80,13 +80,15 @@ config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                      neat.DefaultSpeciesSet, neat.DefaultStagnation, game_fc_config_filename)
 
 # Create the population, which is the top-level object for a NEAT run.
-p = neat.Population(config)
+#p = neat.Population(config)
 
 # Add a stdout reporter to show progress in the terminal.
-p.add_reporter(neat.StdOutReporter(True))
-stats = neat.StatisticsReporter()
-p.add_reporter(stats)
-p.add_reporter(neat.Checkpointer(5))
+#p.add_reporter(neat.StdOutReporter(True))
+#stats = neat.StatisticsReporter()
+#p.add_reporter(stats)
+#p.add_reporter(neat.Checkpointer(5))
+
+[stats, p] = pickle.load(open('evolve_result.pkl', 'rb'))
 
 winner = p.run(evaluate_genomes, 99999)
 
