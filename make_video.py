@@ -2,7 +2,7 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 from gym_compete_rllib.gym_compete_to_rllib import created_envs
 from train import build_trainer_config, ray_init
-from config import PPOTrainer, get_config_test
+from config import PPOTrainer, get_config_test, get_config_linear
 import pickle, json, codecs
 import argparse
 from tqdm import tqdm
@@ -22,7 +22,7 @@ parser.add_argument('--no_video', type=bool, default=False,
 
 args = parser.parse_args()
 
-config = get_config_test()
+config = get_config_linear()
 config['_train_policies'] = []
 config['_train_steps'] = args.steps
 config['train_batch_size'] = 256
