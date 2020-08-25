@@ -36,7 +36,6 @@ def make_video(args):
     config['rollout_fragment_length'] = 200
     config['lr'] = 0
 
-    print("Args:", args)
 
     config['_env']['with_video'] = not args.no_video
 

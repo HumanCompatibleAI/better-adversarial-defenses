@@ -7,6 +7,7 @@ tmp*.py
 *.mp4
 neat-checkpoint-*
 fc-*.config
+tf_agents_ysp_root
 mem_out*.txt
 mem_out*.png
 *.dat
