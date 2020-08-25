@@ -73,7 +73,13 @@ def get_default_config():
     
     config['num_envs_per_worker'] = 4
     config['_log_error'] = True
-
+    config['_model_params'] = {
+            "use_lstm": False,
+            "fcnet_hiddens": [64, 64],
+            # "custom_action_dist": "DiagGaussian",
+            "fcnet_activation": "tanh",
+            "free_log_std": True,
+    }
     return config
 
 def get_config_coarse():
@@ -179,6 +185,68 @@ def get_config_best():
 
     return config
 
+def get_config_linear():
+    """Search in a smaller range."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42880
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22628
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2866
+    config['num_workers'] = 8
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_linear"
+    config['_call']['num_samples'] = 4
+    #config['_run_inline'] = True
+    
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+    config['_model_params'] = {
+            "custom_model": "LinearModel",
+            "custom_model_config": {
+                "model_config": {},
+                "name": "model_linear"
+            },
+    }
+
+    return config
+
+def get_config_sizes():
+    """Search in a smaller range."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42880
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22628
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2866
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_sizes"
+    config['_call']['num_samples'] = 4
+    #config['_run_inline'] = True
+    
+    config['_run_inline'] = True
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+    config['_model_params'] = {
+            "use_lstm": False,
+            "fcnet_hiddens": tune.grid_search([[256, 256, 256], [256, 256], [64, 64], [64, 64, 64]]),
+            # "custom_action_dist": "DiagGaussian",
+            "fcnet_activation": "tanh",
+            "free_log_std": True,
+    }
+
+    return config
 
 def get_config_es():
     """Run with random search."""
@@ -337,6 +405,8 @@ CONFIGS = {'test': get_config_test(),
            'fine2': get_config_fine2(),
            'best': get_config_best(),
            'es': get_config_es(),
+           'linear': get_config_linear(),
+           'sizes': get_config_sizes(),
 
           }
 
@@ -365,11 +435,7 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
 
     agent_config_from_scratch = (POLICIES[config['_trainer']], obs_space, act_space, {
         "model": {
-            "use_lstm": False,
-            "fcnet_hiddens": [64, 64],
-            # "custom_action_dist": "DiagGaussian",
-            "fcnet_activation": "tanh",
-            "free_log_std": True,
+            **config['_model_params']
         },
         "framework": config['framework'],
         "observation_filter": "MeanStdFilter",
