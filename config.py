@@ -16,7 +16,7 @@ def bursts_config(config, iteration):
     evaluation_time = config['_train_steps'] // 2
     burst_size = int(config['_burst_size'])
 
-    n_bursts = pretrain_time // (2 * burst_size)
+    #n_bursts = pretrain_time // (2 * burst_size)
 
     # print("Pretrain time: %d" % pretrain_time)
     # print("Evaluation time: %d" % evaluation_time)
@@ -316,14 +316,14 @@ def get_config_bursts():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config['_update_config'] = bursts_config
-    config['_train_steps'] = 9999999999
-    config['_burst_size'] = tune.loguniform(1, 500, 10)
+    config['_train_steps'] = 100000000
+    config['_burst_size'] = tune.grid_search([0, 1, 50, 200, 400, 800, 1600]) # loguniform(1, 500, 10)
 
-    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
     config['_call']['name'] = "adversarial_tune_bursts"
-    config['_call']['num_samples'] = 300
+    config['_call']['num_samples'] = 3
     return config
 
 

@@ -225,12 +225,16 @@ def gym_compete_env_with_video(env_name, directory=None):
 
     # print(config)
     # config['video_params']['annotation_params']['font'] = '/home/sergei/.fonts/times'
+    
+    resolution = config['video_params']['annotation_params']['resolution']
+    # print(resolution)
+    # resolution = [480, 270]
 
     env = AnnotatedGymCompete(env=env, env_name=env_name, agent_a_type=config['agent_a_type'],
                               agent_b_type=config['agent_b_type'],
                               agent_a_path=config['agent_a_path'], agent_b_path=config['agent_b_path'],
                               mask_agent_index=config['mask_agent_index'],
-                              resolution=config['video_params']['annotation_params']['resolution'],
+                              resolution=resolution,
                               font=config['video_params']['annotation_params']['font'],
                               font_size=config['video_params']['annotation_params']['font_size'],
                               short_labels=config['video_params']['annotation_params']['short_labels'],
