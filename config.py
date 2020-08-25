@@ -7,6 +7,8 @@ from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.es import ESTrainer, ESTFPolicy
 from copy import deepcopy
+import numpy as np
+
 
 def bursts_config(config, iteration):
     """Updates config to train with bursts."""
@@ -42,6 +44,49 @@ def bursts_config(config, iteration):
         train_policies = ['player_1']
 
     config_new['_train_policies'] = train_policies
+    return config_new
+
+
+def bursts_config_increase(config, iteration):
+    """Updates config to train with bursts."""
+    config_new = deepcopy(config)
+
+    train_time = config['_train_steps']
+    evaluation_time = config['_eval_steps']
+    exponent = config['_burst_exponent']
+
+    if train_time + evaluation_time < iteration:
+        print(f"Iteration {iteration} too high")
+
+    def e_np1_from_x(x):
+        np1 = np.floor(np.log((1 + x * (exponent - 1) / 2)) / np.log(exponent))
+        return exponent ** np1
+    def sum_n_from_e_np1(e_np1):
+        return 2 * (e_np1 - 1) // (exponent - 1)
+
+    train_policies = config_new['_train_policies']
+    info = {}
+
+
+    # pretraining stage
+    if iteration < train_time:
+        e_np1 = e_np1_from_x(iteration)
+        s = sum_n_from_e_np1(e_np1)
+        delta = iteration - s
+        stage, rem = divmod(delta, e_np1)
+        train_policies = ['player_1'] if stage == 0 else ['player_2']
+        info['e_np1'] = e_np1
+        info['s'] = s
+        info['delta'] = delta
+        info['stage'] = stage
+        info['rem'] = rem
+        info['type'] = 'train'
+    else:
+        train_policies = ['player_1']
+        info['type'] = 'eval'
+
+    config_new['_train_policies'] = train_policies
+    config_new['_burst_info'] = info
     return config_new
 
 
