@@ -58,29 +58,29 @@ def bursts_config_increase(config, iteration):
     if train_time + evaluation_time < iteration:
         print(f"Iteration {iteration} too high")
 
-    def e_np1_from_x(x):
-        np1 = np.floor(np.log((1 + x * (exponent - 1) / 2)) / np.log(exponent))
-        return exponent ** np1
-    def sum_n_from_e_np1(e_np1):
-        return 2 * (e_np1 - 1) // (exponent - 1)
 
     train_policies = config_new['_train_policies']
     info = {}
 
-
     # pretraining stage
     if iteration < train_time:
-        e_np1 = e_np1_from_x(iteration)
-        s = sum_n_from_e_np1(e_np1)
-        delta = iteration - s
-        stage, rem = divmod(delta, e_np1)
-        train_policies = ['player_1'] if stage == 0 else ['player_2']
-        info['e_np1'] = e_np1
-        info['s'] = s
-        info['delta'] = delta
-        info['stage'] = stage
-        info['rem'] = rem
+        bs_float, bs = 1.0, 1
+        passed = 0
+        while passed + 2 * bs < iteration + 1:
+            passed += 2 * bs # 2 agents in total
+            bs_float = bs_float * exponent
+            bs = round(bs_float)
+
+        # last burst size is ours
+        delta = iteration - passed
+        first_stage = delta < bs
+
+        train_policies = ['player_1'] if first_stage else ['player_2']
         info['type'] = 'train'
+        info['bs'] = bs
+        info['bs_float'] = bs_float
+        info['passed'] = passed
+        info['delta'] = delta
     else:
         train_policies = ['player_1']
         info['type'] = 'eval'
@@ -439,6 +439,34 @@ def get_config_bursts():
     config['_call']['num_samples'] = 3
     return config
 
+def get_config_bursts_exp():
+    """One trial with bursts."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42879
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22627
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2865
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_update_config'] = bursts_config_increase
+    config['_train_steps'] = 5000
+    config['_eval_steps'] = 1500
+    config['_burst_exponent'] = tune.loguniform(1.1, 2, 2)
+
+    steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
+
+    config['_call']['stop'] = {'timesteps_total': steps}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_bursts_exp"
+    config['_call']['num_samples'] = 20
+    return config
+
 
 CONFIGS = {'test': get_config_test(),
            'coarse': get_config_coarse(),
@@ -452,6 +480,7 @@ CONFIGS = {'test': get_config_test(),
            'es': get_config_es(),
            'linear': get_config_linear(),
            'sizes': get_config_sizes(),
+           'bursts_exp': get_config_bursts_exp(),
 
           }
 
