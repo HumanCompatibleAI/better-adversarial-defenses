@@ -7,6 +7,7 @@ Requires OpenAI gym (and maybe mujoco).  If not installed, move on to next
 example.
 """
 
+from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.envs.gym import make as gym_make
 from rlpyt.algos.qpg.sac import SAC
@@ -18,26 +19,26 @@ import gym_compete_rllib.single_agent_env
 
 
 def build_and_train(env_id="Hopper-v3", run_ID=0, cuda_idx=None):
-    sampler = SerialSampler(
+    sampler = CpuSampler(
         EnvCls=gym_make,
         env_kwargs=dict(id=env_id),
         eval_env_kwargs=dict(id=env_id),
         batch_T=1,  # One time-step per sampler iteration.
-        batch_B=1,  # One environment (i.e. sampler Batch dimension).
+        batch_B=8,  # One environment (i.e. sampler Batch dimension).
         max_decorrelation_steps=0,
-        eval_n_envs=10,
+        eval_n_envs=1,
         eval_max_steps=int(51e3),
         eval_max_trajectories=50,
     )
-    algo = SAC()  # Run with defaults.
+    algo = SAC(batch_size=4096, bootstrap_timelimit=False)  # Run with defaults.
     agent = SacAgent()
     runner = MinibatchRlEval(
         algo=algo,
         agent=agent,
         sampler=sampler,
-        n_steps=1e6,
+        n_steps=50e6,
         log_interval_steps=1e4,
-        affinity=dict(cuda_idx=cuda_idx),
+        affinity=dict(cuda_idx=cuda_idx, workers_cpus=list(range(10))),
     )
     config = dict(env_id=env_id)
     name = "sac_" + env_id

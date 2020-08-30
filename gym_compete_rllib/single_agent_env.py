@@ -31,12 +31,16 @@ class act(object):
 # for _ in range(3):
 #     actors.put(act.remote())
 
+ray_initialized = False
     
 def create_env_embed_agent(env_name, remote_agent=True):
     """Create a single-agent env."""
     if remote_agent == True:
         #ray.init(ignore_reinit_error=True, address=info['redis_address'])
-        ray.init(address='auto', redis_password='5241590000000000', ignore_reinit_error=True)
+        global ray_initialized
+        if not ray_initialized:
+            ray.init(address='auto', redis_password='5241590000000000', ignore_reinit_error=True)
+            #ray_initialized = True
         actor = act.remote()
 #        actor = actors.get()
         policy_model_1 = lambda o, actor=actor: ray.get(actor.predict.remote(o))
