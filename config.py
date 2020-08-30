@@ -80,6 +80,23 @@ def get_default_config():
             "fcnet_activation": "tanh",
             "free_log_std": True,
     }
+
+
+    def get_policies(config, n_policies, obs_space, act_space, policy_template="player_%d"):
+        """Get a policy dictionary."""
+        policies = {policy_template % i: get_agent_config(agent_id=i, which=config['_policies'][i],
+                                                          config=config,
+                                                          obs_space=obs_space, act_space=act_space)
+                    for i in range(1, 1 + n_policies)}
+        return policies
+
+    def select_policy(agent_id):
+        """Select policy at execution."""
+        agent_ids = ["player_1", "player_2"]
+        return agent_id
+ 
+    config['_select_policy'] = select_policy
+
     return config
 
 def get_config_coarse():
@@ -237,7 +254,7 @@ def get_config_sizes():
     
     config['_run_inline'] = True
     config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
-    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 3}}
     config['_model_params'] = {
             "use_lstm": False,
             "fcnet_hiddens": tune.grid_search([[256, 256, 256], [256, 256], [64, 64], [64, 64, 64]]),
@@ -371,6 +388,31 @@ def get_config_victim_recover():
 
 def get_config_bursts():
     """One trial with bursts."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42879
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22627
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2865
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_update_config'] = bursts_config
+    config['_train_steps'] = 9999999999
+    config['_burst_size'] = tune.loguniform(1, 500, 10)
+
+    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_bursts"
+    config['_call']['num_samples'] = 300
+    return config
+
+def get_config_bursts_normal():
+    """One trial with bursts and training against the normal opponent as well."""
     # try changing learning rate
     config = get_default_config()
 

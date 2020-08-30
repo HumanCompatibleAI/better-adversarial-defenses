@@ -57,22 +57,9 @@ def build_trainer_config(config):
     obs_space, act_space, n_policies = env.observation_space, env.action_space, env.n_policies	
     env.close()	
 
-    # creating policies	
-    policy_template = "player_%d"	
-
-    policies = {policy_template % i: get_agent_config(agent_id=i, which=config['_policies'][i],	
-                                                      config=config,	
-                                                      obs_space=obs_space, act_space=act_space)	
-                for i in range(1, 1 + n_policies)}	
-    policies_keys = list(sorted(policies.keys()))	
-
-    def select_policy(agent_id):	
-        """Select policy at execution."""	
-        agent_ids = ["player_1", "player_2"]	
-        assert agent_id in agent_ids	
-
-        # selecting the corresponding policy (only for 2 policies)	
-        return policies_keys[agent_ids.index(agent_id)]	
+    policies = config['_get_policies'](config=config, n_policies=n_policies, obs_space=obs_space, act_space=act_space)
+    policies_keys = list(sorted(policies.keys()))
+    select_policy = config['_select_policy']
 
     for k in config['_train_policies']:	
         assert k in policies.keys()	
