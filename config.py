@@ -89,6 +89,18 @@ def bursts_config_increase(config, iteration):
     config_new['_burst_info'] = info
     return config_new
 
+def get_policies_default(config, n_policies, obs_space, act_space, policy_template="player_%d"):
+    """Get a policy dictionary."""
+    policies = {policy_template % i: get_agent_config(agent_id=i, which=config['_policies'][i],
+                                                      config=config,
+                                                      obs_space=obs_space, act_space=act_space)
+                for i in range(1, 1 + n_policies)}
+    return policies
+
+def select_policy_default(agent_id, config):
+    """Select policy at execution."""
+    agent_ids = ["player_1", "player_2"]
+    return agent_id
 
 def get_default_config():
     """Main config."""
@@ -127,20 +139,9 @@ def get_default_config():
     }
 
 
-    def get_policies(config, n_policies, obs_space, act_space, policy_template="player_%d"):
-        """Get a policy dictionary."""
-        policies = {policy_template % i: get_agent_config(agent_id=i, which=config['_policies'][i],
-                                                          config=config,
-                                                          obs_space=obs_space, act_space=act_space)
-                    for i in range(1, 1 + n_policies)}
-        return policies
-
-    def select_policy(agent_id):
-        """Select policy at execution."""
-        agent_ids = ["player_1", "player_2"]
-        return agent_id
  
-    config['_select_policy'] = select_policy
+    config['_select_policy'] = select_policy_default
+    config['_get_policies'] = get_policies_default
 
     return config
 
@@ -484,6 +485,26 @@ def get_config_bursts_exp():
     config['_call']['num_samples'] = 20
     return config
 
+def get_policies_all(config, n_policies, obs_space, act_space, policy_template="player_%d%s"):
+    """Get a policy dictionary."""
+    which_arr = {"pretrained": "_pretrained", "from_scratch": ""}
+    policies = {policy_template % (i, which_v): get_agent_config(agent_id=i, which=which_k, config=config, 
+        obs_space=obs_space, act_space=act_space)
+        for i in range(1, 1 + n_policies)
+        for which_k, which_v in which_arr.items()
+        }
+    return policies
+
+def select_policy_opp_normal_and_adv(agent_id, config):
+    """Select policy at execution."""
+    p_normal = config['_p_normal']
+    if agent_id == "player_1":
+        return np.random.choice(["player_1_pretrained", "player_1"],
+                p=[p_normal, 1 - p_normal])
+    elif agent_id == "player_2":
+        # pretrained victim
+        return "player_2_pretrained"
+
 def get_config_bursts_normal():
     """One trial with bursts and training against the normal opponent as well."""
     # try changing learning rate
@@ -498,15 +519,24 @@ def get_config_bursts_normal():
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
-    config['_update_config'] = bursts_config
-    config['_train_steps'] = 9999999999
-    config['_burst_size'] = tune.loguniform(1, 500, 10)
+    config['_update_config'] = bursts_config_increase
+    config['_train_steps'] = 5000
+    config['_eval_steps'] = 1500
+    config['_burst_exponent'] = tune.loguniform(1.1, 2, 2)
+    config['_p_normal'] = 0.5
 
-    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
+
+    config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_bursts"
-    config['_call']['num_samples'] = 300
+    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal"
+    config['_call']['num_samples'] = 1
+    # ['humanoid_blocker', 'humanoid'],
+
+    config['_run_inline'] = True
+    config['_select_policy'] = select_policy_opp_normal_and_adv
+    config['_get_policies'] = get_policies_all
     return config
 
 
@@ -523,6 +553,7 @@ CONFIGS = {'test': get_config_test(),
            'linear': get_config_linear(),
            'sizes': get_config_sizes(),
            'bursts_exp': get_config_bursts_exp(),
+           'bursts_exp_withnormal': get_config_bursts_normal(),
 
           }
 

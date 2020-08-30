@@ -23,6 +23,7 @@ import multiprocessing
 from config import CONFIGS, TRAINERS, get_agent_config	
 import tensorflow as tf	
 import json	
+from functools import partial
 
 # parser for main()	
 parser = argparse.ArgumentParser(description='Train in YouShallNotPass')	
@@ -46,7 +47,8 @@ def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
         kwargs['resources'] = {'tune_cpu': num_cpus}	
         kwargs['temp_dir'] = tmp_dir	
 
-    return ray.init(log_to_driver=False, logging_level=logging.ERROR, **kwargs)	
+    #kwargs['logging_level'] = logging.ERROR
+    return ray.init(log_to_driver=True, **kwargs)	
 
 
 def build_trainer_config(config):	
@@ -56,6 +58,8 @@ def build_trainer_config(config):
     env = env_fcn(config['_env'])	
     obs_space, act_space, n_policies = env.observation_space, env.action_space, env.n_policies	
     env.close()	
+
+    print(config)
 
     policies = config['_get_policies'](config=config, n_policies=n_policies, obs_space=obs_space, act_space=act_space)
     policies_keys = list(sorted(policies.keys()))
@@ -70,7 +74,7 @@ def build_trainer_config(config):
         "multiagent": {	
             "policies_to_train": config['_train_policies'],	
             "policies": policies,	
-            "policy_mapping_fn": select_policy,	
+            "policy_mapping_fn": partial(select_policy, config=config),	
         },	
         'tf_session_args': {'intra_op_parallelism_threads': config['_num_workers_tf'],	
                             'inter_op_parallelism_threads': config['_num_workers_tf'],	
