@@ -40,7 +40,7 @@ def create_env_embed_agent(env_name, remote_agent=True):
         global ray_initialized
         if not ray_initialized:
             ray.init(address='auto', redis_password='5241590000000000', ignore_reinit_error=True)
-            ray_initialized = True
+            #ray_initialized = True
         actor = act.remote()
 #        actor = actors.get()
         policy_model_1 = lambda o, actor=actor: ray.get(actor.predict.remote(o))
