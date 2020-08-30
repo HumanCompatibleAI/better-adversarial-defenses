@@ -92,7 +92,7 @@ def train_eval(
     value_fc_layers=(200, 100),
     use_rnns=False,
     # Params for collect
-    num_environment_steps=25000000,
+    num_environment_steps=250000000,
     collect_episodes_per_iteration=30,
     num_parallel_environments=30,
     replay_buffer_capacity=1001,  # Per-environment

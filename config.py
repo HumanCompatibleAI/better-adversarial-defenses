@@ -7,6 +7,8 @@ from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.es import ESTrainer, ESTFPolicy
 from copy import deepcopy
+import numpy as np
+
 
 def bursts_config(config, iteration):
     """Updates config to train with bursts."""
@@ -16,7 +18,7 @@ def bursts_config(config, iteration):
     evaluation_time = config['_train_steps'] // 2
     burst_size = int(config['_burst_size'])
 
-    n_bursts = pretrain_time // (2 * burst_size)
+    #n_bursts = pretrain_time // (2 * burst_size)
 
     # print("Pretrain time: %d" % pretrain_time)
     # print("Evaluation time: %d" % evaluation_time)
@@ -42,6 +44,49 @@ def bursts_config(config, iteration):
         train_policies = ['player_1']
 
     config_new['_train_policies'] = train_policies
+    return config_new
+
+
+def bursts_config_increase(config, iteration):
+    """Updates config to train with bursts."""
+    config_new = deepcopy(config)
+
+    train_time = config['_train_steps']
+    evaluation_time = config['_eval_steps']
+    exponent = config['_burst_exponent']
+
+    if train_time + evaluation_time < iteration:
+        print(f"Iteration {iteration} too high")
+
+
+    train_policies = config_new['_train_policies']
+    info = {}
+
+    # pretraining stage
+    if iteration < train_time:
+        bs_float, bs = 1.0, 1
+        passed = 0
+        while passed + 2 * bs < iteration + 1:
+            passed += 2 * bs # 2 agents in total
+            bs_float = bs_float * exponent
+            bs = round(bs_float)
+
+        # last burst size is ours
+        delta = iteration - passed
+        first_stage = delta < bs
+
+        train_policies = ['player_1'] if first_stage else ['player_2']
+        info['type'] = 'train'
+        info['bs'] = bs
+        info['bs_float'] = bs_float
+        info['passed'] = passed
+        info['delta'] = delta
+    else:
+        train_policies = ['player_1']
+        info['type'] = 'eval'
+
+    config_new['_train_policies'] = train_policies
+    config_new['_burst_info'] = info
     return config_new
 
 
@@ -73,7 +118,13 @@ def get_default_config():
     
     config['num_envs_per_worker'] = 4
     config['_log_error'] = True
-
+    config['_model_params'] = {
+            "use_lstm": False,
+            "fcnet_hiddens": [64, 64],
+            # "custom_action_dist": "DiagGaussian",
+            "fcnet_activation": "tanh",
+            "free_log_std": True,
+    }
     return config
 
 def get_config_coarse():
@@ -179,6 +230,68 @@ def get_config_best():
 
     return config
 
+def get_config_linear():
+    """Search in a smaller range."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42880
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22628
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2866
+    config['num_workers'] = 8
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_linear"
+    config['_call']['num_samples'] = 4
+    #config['_run_inline'] = True
+    
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+    config['_model_params'] = {
+            "custom_model": "LinearModel",
+            "custom_model_config": {
+                "model_config": {},
+                "name": "model_linear"
+            },
+    }
+
+    return config
+
+def get_config_sizes():
+    """Search in a smaller range."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42880
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22628
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2866
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_sizes"
+    config['_call']['num_samples'] = 4
+    #config['_run_inline'] = True
+    
+    config['_run_inline'] = True
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+    config['_model_params'] = {
+            "use_lstm": False,
+            "fcnet_hiddens": tune.grid_search([[256, 256, 256], [256, 256], [64, 64], [64, 64, 64]]),
+            # "custom_action_dist": "DiagGaussian",
+            "fcnet_activation": "tanh",
+            "free_log_std": True,
+    }
+
+    return config
 
 def get_config_es():
     """Run with random search."""
@@ -316,14 +429,42 @@ def get_config_bursts():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config['_update_config'] = bursts_config
-    config['_train_steps'] = 9999999999
-    config['_burst_size'] = tune.loguniform(1, 500, 10)
+    config['_train_steps'] = 100000000
+    config['_burst_size'] = tune.grid_search([0, 1, 50, 200, 400, 800, 1600]) # loguniform(1, 500, 10)
 
-    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
     config['_call']['name'] = "adversarial_tune_bursts"
-    config['_call']['num_samples'] = 300
+    config['_call']['num_samples'] = 3
+    return config
+
+def get_config_bursts_exp():
+    """One trial with bursts."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42879
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22627
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2865
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_update_config'] = bursts_config_increase
+    config['_train_steps'] = 5000
+    config['_eval_steps'] = 1500
+    config['_burst_exponent'] = tune.loguniform(1.1, 2, 2)
+
+    steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
+
+    config['_call']['stop'] = {'timesteps_total': steps}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_bursts_exp"
+    config['_call']['num_samples'] = 20
     return config
 
 
@@ -337,6 +478,9 @@ CONFIGS = {'test': get_config_test(),
            'fine2': get_config_fine2(),
            'best': get_config_best(),
            'es': get_config_es(),
+           'linear': get_config_linear(),
+           'sizes': get_config_sizes(),
+           'bursts_exp': get_config_bursts_exp(),
 
           }
 
@@ -365,11 +509,7 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
 
     agent_config_from_scratch = (POLICIES[config['_trainer']], obs_space, act_space, {
         "model": {
-            "use_lstm": False,
-            "fcnet_hiddens": [64, 64],
-            # "custom_action_dist": "DiagGaussian",
-            "fcnet_activation": "tanh",
-            "free_log_std": True,
+            **config['_model_params']
         },
         "framework": config['framework'],
         "observation_filter": "MeanStdFilter",

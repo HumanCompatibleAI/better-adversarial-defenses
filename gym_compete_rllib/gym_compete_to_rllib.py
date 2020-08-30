@@ -2,6 +2,7 @@ from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
 from ray.tune.registry import register_env
 import datetime, uuid
+from gym_compete_rllib.layers import UnconnectedVariableLayer
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 import gym
 import numpy as np
@@ -191,9 +192,37 @@ class GymCompetePretrainedModel(KerasModelModel):
         super(GymCompetePretrainedModel, self).__init__(*args, **kwargs,
                                                         policy_net=nets['policy_mean_logstd_flat'],
                                                         value_net=nets['value'])
+class LinearModel(KerasModelModel):
+    """Linear model."""
+
+    def __init__(self, *args, **kwargs):
+
+        x = tf.keras.Input(shape=(380,))
+        y = tf.keras.layers.Dense(17, activation=None, use_bias=True)(x)
+        model_policy_mean = y
+        model_policy_mean = tf.keras.layers.Reshape((17, 1), name='reshape_mean')(model_policy_mean)
+        model_policy_inp = x
+        
+        model_policy_std = UnconnectedVariableLayer(name='std', shape=(17,))(x)
+        model_policy_std = tf.keras.layers.Reshape((17, 1), name='reshape_std')(model_policy_std)
+        model_policy_mean_std_ = tf.keras.layers.Concatenate(axis=2)([model_policy_mean, model_policy_std])
+        model_policy_mean_std_flat_ = tf.keras.layers.Flatten(data_format='channels_first')(model_policy_mean_std_)
+        model_policy_mean_std_flat = tf.keras.Model(inputs=model_policy_inp, outputs=model_policy_mean_std_flat_)
+
+        policy_net = model_policy_mean_std_flat
+        x = tf.keras.Input(shape=(380,))
+        y = tf.keras.layers.Dense(64, activation='tanh')(x)
+        y = tf.keras.layers.Dense(64, activation='tanh')(y)
+        y = tf.keras.layers.Dense(1, activation=None)(y)
+        value_net = tf.keras.models.Model(inputs=x, outputs=y)
+
+        super(LinearModel, self).__init__(*args, **kwargs,
+                                                        policy_net=policy_net,
+                                                        value_net=value_net)
 
 
 ModelCatalog.register_custom_model("GymCompetePretrainedModel", GymCompetePretrainedModel)
+ModelCatalog.register_custom_model("LinearModel", LinearModel)
 
 
 def gym_compete_env_with_video(env_name, directory=None):
@@ -225,12 +254,16 @@ def gym_compete_env_with_video(env_name, directory=None):
 
     # print(config)
     # config['video_params']['annotation_params']['font'] = '/home/sergei/.fonts/times'
+    
+    resolution = config['video_params']['annotation_params']['resolution']
+    # print(resolution)
+    # resolution = [480, 270]
 
     env = AnnotatedGymCompete(env=env, env_name=env_name, agent_a_type=config['agent_a_type'],
                               agent_b_type=config['agent_b_type'],
                               agent_a_path=config['agent_a_path'], agent_b_path=config['agent_b_path'],
                               mask_agent_index=config['mask_agent_index'],
-                              resolution=config['video_params']['annotation_params']['resolution'],
+                              resolution=resolution,
                               font=config['video_params']['annotation_params']['font'],
                               font_size=config['video_params']['annotation_params']['font_size'],
                               short_labels=config['video_params']['annotation_params']['short_labels'],
