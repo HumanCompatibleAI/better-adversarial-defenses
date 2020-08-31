@@ -495,12 +495,15 @@ def get_policies_all(config, n_policies, obs_space, act_space, policy_template="
         }
     return policies
 
-def select_policy_opp_normal_and_adv(agent_id, config):
+def select_policy_opp_normal_and_adv(agent_id, config, do_print=False):
     """Select policy at execution."""
     p_normal = config['_p_normal']
     if agent_id == "player_1":
-        return np.random.choice(["player_1_pretrained", "player_1"],
+        out = np.random.choice(["player_1_pretrained", "player_1"],
                 p=[p_normal, 1 - p_normal])
+        if do_print:
+            print('Chosen', out)
+        return out
     elif agent_id == "player_2":
         # pretrained victim
         return "player_2_pretrained"
