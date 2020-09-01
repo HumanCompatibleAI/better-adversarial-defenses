@@ -85,6 +85,15 @@ def bursts_config_increase(config, iteration):
         train_policies = ['player_1']
         info['type'] = 'eval'
 
+    assert len(train_policies) == 1
+    train_p = train_policies[0]
+
+    if '_n_adversaries' in config:
+        if train_p == "player_1":
+            train_policies = ["player_1_from_scratch_%03d" % (i + 1) for i in range(config['_n_adversaries'])]
+        elif train_p == "player_2":
+            train_policies = ["player_2_pretrained"]
+
     config_new['_train_policies'] = train_policies
     config_new['_burst_info'] = info
     return config_new
@@ -495,6 +504,37 @@ def get_policies_all(config, n_policies, obs_space, act_space, policy_template="
         }
     return policies
 
+def get_policies_pbt(config, n_policies, obs_space, act_space, policy_template="player_%d%s"):
+    """Get a policy dictionary."""
+    n_adversaries = config['_n_adversaries']
+    which_arr = {1:
+                  {"pretrained": ["_pretrained"], "from_scratch": ["_from_scratch_%03d" % i for i in range(1, n_adversaries + 1)]},
+                 2: {"pretrained": ["_pretrained"]}
+                }
+    
+    policies = {policy_template % (i, which_v): get_agent_config(agent_id=i, which=which_k, config=config, obs_space=obs_space, act_space=act_space)
+        for i in range(1, 1 + n_policies)
+        for which_k, which_v_ in which_arr[i].items()
+        for which_v in which_v_ 
+    }
+    #policies['default_policy'] = (None, obs_space, act_space, {})#get_agent_config(agent_id=1, which="pretrained", config=config, obs_space=obs_space, act_space=act_space)
+    return policies
+
+def select_policy_opp_normal_and_adv_pbt(agent_id, config, do_print=False):
+    """Select policy at execution."""
+    p_normal = config['_p_normal']
+    n_adversaries = config['_n_adversaries']
+    
+    if agent_id == "player_1":
+        out = np.random.choice(["player_1_pretrained"] + ["player_1_from_scratch_%03d" % i for i in range(1, n_adversaries + 1)],
+                p=[p_normal] + [(1 - p_normal) / n_adversaries for _ in range(n_adversaries)])
+    elif agent_id == "player_2":
+        # pretrained victim
+        out = "player_2_pretrained"
+    if do_print:
+        print(f"Choosing {out} for {agent_id}")
+    return out
+
 def select_policy_opp_normal_and_adv(agent_id, config, do_print=False):
     """Select policy at execution."""
     p_normal = config['_p_normal']
@@ -521,12 +561,13 @@ def get_config_bursts_normal():
     config['num_workers'] = 4
 
     # ['humanoid_blocker', 'humanoid'],
-    config['_train_policies'] = ['player_1']
+    config['_train_policies'] = []
     config['_update_config'] = bursts_config_increase
     config['_train_steps'] = 5000
     config['_eval_steps'] = 1500
     config['_burst_exponent'] = tune.loguniform(1.1, 2, 2)
     config['_p_normal'] = 0.5
+    config['entropy_coeff'] = tune.uniform(0, 0.01)
 
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
 
@@ -537,9 +578,54 @@ def get_config_bursts_normal():
     config['_call']['num_samples'] = 1
     # ['humanoid_blocker', 'humanoid'],
 
-    config['_run_inline'] = True
+    #config['_run_inline'] = True
     config['_select_policy'] = select_policy_opp_normal_and_adv
     config['_get_policies'] = get_policies_all
+    return config
+
+
+def tune_compose(obj, f):
+    """Apply f after sampling from obj."""
+    return tune.sample_from(lambda x: f(obj.func(x)))
+
+def tune_int(obj):
+    """Convert result to int after sampling from obj."""
+    return tune_compose(obj, round)
+
+def get_config_bursts_normal_pbt():
+    """One trial with bursts and training against the normal opponent as well."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 42879
+    config['lr'] = 0.000755454
+    config['sgd_minibatch_size'] = 22627
+    config['num_sgd_iter'] = 5
+    config['rollout_fragment_length'] = 2865
+    config['num_workers'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_update_config'] = bursts_config_increase
+    config['_train_steps'] = 5000
+    config['_eval_steps'] = 1500
+    config['_burst_exponent'] = tune.loguniform(1.1, 2, 2)
+    config['_p_normal'] = tune.uniform(0.1, 0.9)
+    config['_n_adversaries'] = tune_int(tune.uniform(1, 10))
+    config['entropy_coeff'] = tune.uniform(0, 0.01)
+
+    steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
+
+    config['_call']['stop'] = {'timesteps_total': steps}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal"
+    config['_call']['num_samples'] = 1
+    # ['humanoid_blocker', 'humanoid'],
+
+    #config['_run_inline'] = True
+    config['_select_policy'] = select_policy_opp_normal_and_adv_pbt
+    config['_get_policies'] = get_policies_pbt
     return config
 
 
@@ -557,6 +643,7 @@ CONFIGS = {'test': get_config_test(),
            'sizes': get_config_sizes(),
            'bursts_exp': get_config_bursts_exp(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
+           'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
 
           }
 
