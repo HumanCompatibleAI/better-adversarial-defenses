@@ -47,7 +47,7 @@ def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
         kwargs['resources'] = {'tune_cpu': num_cpus}	
         kwargs['temp_dir'] = tmp_dir	
 
-    #kwargs['logging_level'] = logging.ERROR
+    kwargs['logging_level'] = logging.ERROR
     return ray.init(log_to_driver=True, **kwargs)	
 
 
@@ -59,14 +59,16 @@ def build_trainer_config(config):
     obs_space, act_space, n_policies = env.observation_space, env.action_space, env.n_policies	
     env.close()	
 
-    print(config)
-
     policies = config['_get_policies'](config=config, n_policies=n_policies, obs_space=obs_space, act_space=act_space)
     policies_keys = list(sorted(policies.keys()))
     select_policy = config['_select_policy']
 
+    config1 = deepcopy(config)
+    config1['multiagent'] = {}
+    config1['multiagent']['policies'] = policies
+
     for k in config['_train_policies']:	
-        assert k in policies.keys()	
+        assert k in policies.keys(), f"Unknown policy {k} [range {policies.keys()}]"
 
     rl_config = {	
         "env": config['_env_name_rllib'],	
@@ -74,7 +76,7 @@ def build_trainer_config(config):
         "multiagent": {	
             "policies_to_train": config['_train_policies'],	
             "policies": policies,	
-            "policy_mapping_fn": partial(select_policy, config=config),	
+            "policy_mapping_fn": partial(select_policy, config=config1),	
         },	
         'tf_session_args': {'intra_op_parallelism_threads': config['_num_workers_tf'],	
                             'inter_op_parallelism_threads': config['_num_workers_tf'],	
@@ -94,7 +96,7 @@ def build_trainer_config(config):
         if k.startswith('_'): continue	
         rl_config[k] = v	
 
-    # print("Config:", pretty_print(rl_config))	
+    print("Config:", pretty_print(rl_config))	
 
     return rl_config	
 
