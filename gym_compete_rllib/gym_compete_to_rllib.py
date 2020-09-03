@@ -187,7 +187,9 @@ class GymCompetePretrainedModel(KerasModelModel):
     def __init__(self, *args, **kwargs):
         env_name = args[3]['custom_model_config']['env_name']
         agent_id = args[3]['custom_model_config']['agent_id']
-        nets = get_policy_value_nets(env_name, agent_id)
+        load_weights = args[3]['custom_model_config']['load_weights']
+        nets = get_policy_value_nets(env_name, agent_id, load_weights=load_weights)
+        self._nets = nets
         n_out = int(nets['policy_mean_logstd_flat'].output_shape[1])
         super(GymCompetePretrainedModel, self).__init__(*args, **kwargs,
                                                         policy_net=nets['policy_mean_logstd_flat'],
