@@ -96,7 +96,7 @@ def build_trainer_config(config):
         if k.startswith('_'): continue	
         rl_config[k] = v	
 
-    print("Config:", pretty_print(rl_config))	
+    # print("Config:", pretty_print(rl_config))	
 
     return rl_config	
 

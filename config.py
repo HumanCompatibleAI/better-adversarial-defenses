@@ -342,6 +342,35 @@ def get_config_es():
 
     return config
 
+def get_config_test_external():
+    """One trial."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 2048
+    config['lr'] = 1e-4
+    config['sgd_minibatch_size'] = 512
+    config['num_sgd_iter'] = 1
+    config['rollout_fragment_length'] = 128
+    config['num_workers'] = 2
+    
+    config['num_envs_per_worker'] = 4
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1', 'player_2']
+    
+    config['_policies'] = [None, "from_scratch_sb", "pretrained"]
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "PPO"
+    config['_policy'] = "PPO"
+
+    config['_run_inline'] = True
+
+    config['_train_steps'] = 10
+    return config
+
+
 
 def get_config_test():
     """One trial."""
@@ -663,12 +692,29 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
                 "agent_id": agent_id - 1,
                 "env_name": config['_env']['env_name'],
                 "model_config": {},
-                "name": "model_%s" % (agent_id - 1)
+                "name": "model_%s" % (agent_id - 1),
+                "load_weights": True,
             },
         },
 
         "framework": config['framework'],
     })
+    
+    agent_config_from_scratch_sb = (POLICIES[config['_trainer']], obs_space, act_space, {
+        'model': {
+            "custom_model": "GymCompetePretrainedModel",
+            "custom_model_config": {
+                "agent_id": agent_id - 1,
+                "env_name": config['_env']['env_name'],
+                "model_config": {},
+                "name": "model_%s" % (agent_id - 1),
+                "load_weights": False,
+            },
+        },
+
+        "framework": config['framework'],
+    })
+
 
     agent_config_from_scratch = (POLICIES[config['_trainer']], obs_space, act_space, {
         "model": {
@@ -679,6 +725,7 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
     })
 
     configs = {"pretrained": agent_config_pretrained,
-               "from_scratch": agent_config_from_scratch}
+               "from_scratch": agent_config_from_scratch,
+               "from_scratch_sb": agent_config_from_scratch_sb}
 
     return configs[which]
