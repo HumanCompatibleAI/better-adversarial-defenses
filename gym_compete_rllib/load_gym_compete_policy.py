@@ -65,7 +65,7 @@ def normalizer_mean_std(variables, name):
     std = np.sqrt(np.maximum(var_est, 1e-2))
     return mean, std
 
-def nets_to_weight_array(nets, check_content_id=False):
+def nets_to_weights(nets):
     """Convert networks from load_gym_compete back to a numpy array."""
     variables_spec = nets['variables_spec']
     variables_spec_dict = dict(variables_spec)
@@ -95,6 +95,13 @@ def nets_to_weight_array(nets, check_content_id=False):
     for var, shape in nets['variables_spec']:
         assert variable_to_w[var].shape == tuple(shape)
         
+    return variable_to_w
+
+def nets_to_weight_array(nets, check_content_id=False):
+    """Convert networks from load_gym_compete back to a numpy array."""
+    variable_to_w = nets_to_weights(nets)
+    variables_spec = nets['variables_spec']
+    
     def compress_variables(variable_to_w, variables_spec):
         """Create a flat array from a dict of variables."""
         result = []
@@ -111,6 +118,21 @@ def nets_to_weight_array(nets, check_content_id=False):
         assert np.allclose(vars_compressed, nets['weights_unpickle'])
 
     return vars_compressed
+
+def load_weights_from_vars(variables, value_net, policy_net):
+    """Load weights from variables dict into keras networks."""
+    layer_names = ['1', '2', 'final']
+    # name in old vars, new model, layer offset
+    networks_map = [('vff', value_net, 1), ('pol', policy_net, 2)]
+
+    for net_name, net, layer_offset in networks_map:
+        for layer, layer_name in enumerate(layer_names):
+            net.layers[layer_offset + layer].set_weights(
+                [variables[net_name + layer_name + '/' + p + ':0']
+                 for p in ['w', 'b']])
+
+    # setting LOGstd value
+    policy_net.layers[-5].set_weights([variables['logstd:0']])
 
 def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables_spec=None, version=1, load_weights=True):
     """Get networks from a pickle file."""
@@ -184,18 +206,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
     #print("Weights delta", n_saved_weights - model_weights)
     
     if load_weights:
-        layer_names = ['1', '2', 'final']
-        # name in old vars, new model, layer offset
-        networks_map = [('vff', results['value'], 1), ('pol', results['policy'], 2)]
-
-        for net_name, net, layer_offset in networks_map:
-            for layer, layer_name in enumerate(layer_names):
-                net.layers[layer_offset + layer].set_weights(
-                    [variables[net_name + layer_name + '/' + p + ':0']
-                     for p in ['w', 'b']])
-
-        # setting LOGstd value
-        results['policy'].layers[-5].set_weights([variables['logstd:0']])
+        load_weights_from_vars(variables, results['value'], results['policy'])
     
     return results
 
