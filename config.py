@@ -347,12 +347,12 @@ def get_config_test_external():
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = 2048
+    config['train_batch_size'] = 50000
     config['lr'] = 1e-4
-    config['sgd_minibatch_size'] = 512
-    config['num_sgd_iter'] = 1
-    config['rollout_fragment_length'] = 128
-    config['num_workers'] = 2
+    config['sgd_minibatch_size'] = 10000
+    config['num_sgd_iter'] = 50
+    config['rollout_fragment_length'] = 1000
+    config['num_workers'] = 8
     
     config['num_envs_per_worker'] = 4
 
@@ -366,6 +366,7 @@ def get_config_test_external():
     config['_policy'] = "PPO"
 
     config['_run_inline'] = True
+    config["batch_mode"] = "complete_episodes"
 
     config['_train_steps'] = 10
     return config
