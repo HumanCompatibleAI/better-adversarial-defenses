@@ -353,12 +353,12 @@ def get_config_test_external():
     config['sgd_minibatch_size'] = 4096
     config['num_sgd_iter'] = 4
     config['rollout_fragment_length'] = 100
-    config['num_workers'] = 3
+    config['num_workers'] = 5
     
-    config['num_envs_per_worker'] = 8
+    config['num_envs_per_worker'] = 10
 
     # ['humanoid_blocker', 'humanoid'],
-    config['_train_policies'] = ['player_1', 'player_2']
+    config['_train_policies'] = ['player_1']
     
     config['_policies'] = [None, "from_scratch_sb", "pretrained"]
     config['num_gpus'] = 0

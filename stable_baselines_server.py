@@ -41,7 +41,7 @@ class MultipleWorker(object):
                 result = self._process_fcn(**kwargs, worker_id=worker_id)
             except Exception as e:
                 result = ("Exception", traceback.format_exc())
-                pass
+                print(result[1])
             self.return_queues[worker_id].put(pickle.dumps(result))
             
     def _process_init(self):
