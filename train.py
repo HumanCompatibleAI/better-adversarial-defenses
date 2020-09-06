@@ -150,6 +150,9 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     ex.add_source_file('config.py')	
     ex.add_config(config=config, checkpoint=checkpoint, do_track=do_track, **config)	
 
+    if 'run_uid' in config and config['run_uid'] == '_setme':
+        config['run_uid'] = str(uuid.uuid1())
+
     @ex.main	
     def train_one(config, checkpoint=None, do_track=True):	
         """One trial with subprocesses for each iteration."""	

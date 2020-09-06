@@ -32,8 +32,6 @@ import gym
 import gym_compete_rllib.gym_compete_to_rllib
 from gym_compete_rllib.gym_compete_to_rllib import created_envs, create_env
 from gym_compete_rllib.load_gym_compete_policy import nets_to_weight_array, nets_to_weights, load_weights_from_vars
-from config import get_config_test_external
-from train import build_trainer_config, ray_init
 
 import pickle
 from copy import deepcopy
@@ -130,7 +128,7 @@ def train_external(policies, samples, config):
         data_policy = {}
         
         # config to send
-        config = filter_dict_pickleable(trainer.config)
+        config = filter_dict_pickleable(config)
         
         # data: rollouts and weights
         data_policy['rollouts'] = rllib_samples_to_dict(samples)[policy]
