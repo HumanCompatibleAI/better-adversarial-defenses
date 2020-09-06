@@ -347,14 +347,14 @@ def get_config_test_external():
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = 50000
+    config['train_batch_size'] = 512#50000
     config['lr'] = 1e-4
-    config['sgd_minibatch_size'] = 10000
+    config['sgd_minibatch_size'] = 512#10000
     config['num_sgd_iter'] = 50
-    config['rollout_fragment_length'] = 1000
-    config['num_workers'] = 8
+    config['rollout_fragment_length'] = 100#1000
+    config['num_workers'] = 0#8
     
-    config['num_envs_per_worker'] = 4
+    config['num_envs_per_worker'] = 1#4
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1', 'player_2']
@@ -367,6 +367,7 @@ def get_config_test_external():
 
     config['_run_inline'] = True
     config["batch_mode"] = "complete_episodes"
+    config["http_remote_port"] = "http://127.0.0.1:50001"
 
     config['_train_steps'] = 10
     return config
