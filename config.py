@@ -361,6 +361,7 @@ def get_config_test_external():
     config['_train_policies'] = ['player_1']
     
     config['_policies'] = [None, "from_scratch_sb", "pretrained"]
+    config['run_uid'] = '_setme'
     config['num_gpus'] = 0
 
     config['_trainer'] = "External"
