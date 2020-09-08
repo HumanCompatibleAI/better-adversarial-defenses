@@ -174,7 +174,7 @@ class KerasModelModel(TFModelV2):
         obs = input_dict["obs"]
         model_out = tf.cast(self.policy_net(obs), tf.float32)
         self._value_out = tf.cast(self.value_net(obs), tf.float32)[:, 0]
-        self._value_out = self._value_out * REWARD_SCALER
+        self._value_out = self._value_out
         return model_out, state
 
     def value_function(self):
@@ -189,6 +189,8 @@ class GymCompetePretrainedModel(KerasModelModel):
         agent_id = args[3]['custom_model_config']['agent_id']
         load_weights = args[3]['custom_model_config']['load_weights']
         nets = get_policy_value_nets(env_name, agent_id, load_weights=load_weights)
+        value_net_postproc_layer = nets['value'].layers[-1]
+        value_net_postproc_layer.set_weights([x * REWARD_SCALER for x in value_net_postproc_layer.get_weights()])
         self._nets = nets
         n_out = int(nets['policy_mean_logstd_flat'].output_shape[1])
         super(GymCompetePretrainedModel, self).__init__(*args, **kwargs,
