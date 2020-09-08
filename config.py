@@ -408,6 +408,36 @@ def get_config_test():
 
     return config
 
+def get_config_sample_speed():
+    """One trial."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 128
+    config['num_workers'] = tune.grid_search([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    
+    config['num_envs_per_worker'] = tune.grid_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['num_gpus'] = 0
+    config['_train_steps'] = 20
+    config["batch_mode"] = "complete_episodes"
+
+    config['_trainer'] = "PPO"
+    config['_policy'] = "PPO"
+    config['_call']['name'] = "adversarial_speed"
+    config['_call']['num_samples'] = 1
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": tune.sample_from(lambda spec: spec.config.num_workers + 1)}} # upper bound
+
+    #config['_run_inline'] = True
+
+    return config
+
 
 def get_config_test_appo():
     """One trial APPO."""
@@ -684,6 +714,7 @@ CONFIGS = {'test': get_config_test(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
            'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
            'external': get_config_test_external(),
+           'sample_speed': get_config_sample_speed(),
           }
 
 TRAINERS = {'PPO': PPOTrainer,
