@@ -107,6 +107,7 @@ class MultipleWorkerTrainer(MultipleWorker):
     def _process_fcn(self, uid, config, data_path, answer_path, worker_id):
         if self.trainer is None:
             self.trainer = MultiStepTrainer()
+        print("Process call", uid, data_path, worker_id)
         self.trainer.create(uid, config)
         data = pickle.load(open(data_path, 'rb'))
         rollouts = data['rollouts']

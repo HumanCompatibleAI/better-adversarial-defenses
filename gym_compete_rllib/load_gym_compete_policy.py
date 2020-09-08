@@ -74,8 +74,17 @@ def nets_to_weights(nets):
     variable_to_w = {}
     variable_to_w['logstd:0'] = nets['policy'].layers[5].get_weights()[0]
     
+    REWARD_SCALER = 1e-2
+
     for var in keep_vars:
-        variable_to_w[var] = nets['variables'][var]
+        if var == 'retfilter/sum:0':
+            coeff = REWARD_SCALER
+        elif var == 'retfilter/sumsq:0':
+            coeff = REWARD_SCALER ** 2
+        else:
+            coeff = 1
+        print(var, coeff)
+        variable_to_w[var] = nets['variables'][var] * coeff
     nets_mapping = [('pol', nets['policy'], 2), ('vff', nets['value'], 1)]
     layer_names = ['1', '2', 'final']
     var_types = [('w', 0), ('b', 1)]
