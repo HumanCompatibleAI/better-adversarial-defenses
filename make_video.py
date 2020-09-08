@@ -17,7 +17,8 @@ def make_video(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     from gym_compete_rllib.gym_compete_to_rllib import created_envs
     from train import build_trainer_config, ray_init
-    from config import PPOTrainer, get_config_test
+    import config
+    from config import TRAINERS
     import pickle, json, codecs
     from tqdm import tqdm
     import numpy as np
@@ -27,7 +28,8 @@ def make_video(args):
     
     os.environ['DISPLAY'] = args.display
     
-    config = get_config_test()
+    config = config.get_config_test_external()
+
     config['_train_policies'] = []
     config['_train_steps'] = args.steps
     config['train_batch_size'] = 256
@@ -44,22 +46,23 @@ def make_video(args):
     num_workers = 0#0 if not args.no_video else 5
 
     config['num_workers'] = num_workers
+    config['num_envs_per_worker'] = 1
 
     if args.load_normal:
         rl_config = build_trainer_config(config=config)
         print("Config", rl_config)
-        trainer1 = PPOTrainer(config=rl_config)
+        trainer1 = TRAINERS[config['_trainer']](config=rl_config)
         trainer1.restore(args.checkpoint)
 
         config['_policies'] = [None, "pretrained", "pretrained"]
         rl_config = build_trainer_config(config=config)
-        trainer = PPOTrainer(config=rl_config)
+        trainer = TRAINERS[config['_trainer']](config=rl_config)
         trainer.get_policy('player_2').set_weights(trainer1.get_policy('player_2').get_weights())
 
     else:
         rl_config = build_trainer_config(config=config)
         print("Config", rl_config)
-        trainer = PPOTrainer(config=rl_config)
+        trainer = TRAINERS[config['_trainer']](config=rl_config)
         trainer.restore(args.checkpoint)
 
     stats = []
