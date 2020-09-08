@@ -133,6 +133,7 @@ def train_external(policies, samples, config):
         # data: rollouts and weights
         data_policy['rollouts'] = rllib_samples_to_dict(samples)[policy]
         data_policy['weights'] = nets_to_weights(policies[policy].model._nets)
+        data_policy['config'] = config
 
         # paths for data/answer
         data_path = run_policy_step_uid + '.pkl'
