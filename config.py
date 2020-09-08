@@ -6,7 +6,7 @@ from ray.rllib.agents.ppo import APPOTrainer
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.es import ESTrainer, ESTFPolicy
-from remote_trainer import ExternalTrainer
+from frankenstein.remote_trainer import ExternalTrainer
 from copy import deepcopy
 import numpy as np
 

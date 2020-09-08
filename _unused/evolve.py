@@ -58,7 +58,7 @@ def evaluate_genomes(genomes, config):
     for (gid, g), r in zip(genomes, rs):
         g.fitness = r
     global stats, p
-    pickle.dump([stats, p], open('evolve_result.pkl', 'wb'))
+    pickle.dump([stats, p], open('../results/evolve_result.pkl', 'wb'))
     return rs
 
 
@@ -88,8 +88,8 @@ config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
 #p.add_reporter(stats)
 #p.add_reporter(neat.Checkpointer(5))
 
-[stats, p] = pickle.load(open('evolve_result.pkl', 'rb'))
+[stats, p] = pickle.load(open('../results/evolve_result.pkl', 'rb'))
 
 winner = p.run(evaluate_genomes, 99999)
 
-pickle.dump([stats, p], open('evolve_result.pkl', 'wb'))
+pickle.dump([stats, p], open('../results/evolve_result.pkl', 'wb'))
