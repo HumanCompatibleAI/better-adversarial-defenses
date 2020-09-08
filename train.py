@@ -96,7 +96,7 @@ def build_trainer_config(config):
         if k.startswith('_'): continue	
         rl_config[k] = v	
 
-    print("Config:", pretty_print(rl_config))	
+    # print("Config:", pretty_print(rl_config))	
 
     return rl_config	
 
@@ -141,6 +141,10 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     if config['framework'] == 'tfe':	
         tf.compat.v2.enable_v2_behavior()	
 
+    if 'run_uid' in config and config['run_uid'] == '_setme':
+        print("UPDATE CONFIG")
+        config['run_uid'] = str(uuid.uuid1())
+
     # https://github.com/IDSIA/sacred/issues/492	
     from sacred import Experiment, SETTINGS	
     SETTINGS.CONFIG.READ_ONLY_CONFIG = False	
@@ -149,6 +153,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     ex.observers.append(MongoObserver(db_name='chai'))	
     ex.add_source_file('config.py')	
     ex.add_config(config=config, checkpoint=checkpoint, do_track=do_track, **config)	
+
 
     @ex.main	
     def train_one(config, checkpoint=None, do_track=True):	

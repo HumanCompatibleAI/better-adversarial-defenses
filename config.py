@@ -6,6 +6,7 @@ from ray.rllib.agents.ppo import APPOTrainer
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.es import ESTrainer, ESTFPolicy
+from remote_trainer import ExternalTrainer
 from copy import deepcopy
 import numpy as np
 
@@ -342,31 +343,69 @@ def get_config_es():
 
     return config
 
+def get_config_test_external():
+    """One trial."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 100
+    config['num_workers'] = 3
+    
+    config['num_envs_per_worker'] = 10
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    
+    config['_policies'] = [None, "from_scratch_sb", "pretrained"]
+    config['run_uid'] = '_setme'
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "External"
+    config['_policy'] = "PPO"
+
+    #config['_run_inline'] = True
+    config["batch_mode"] = "complete_episodes"
+    config["http_remote_port"] = "http://127.0.0.1:50001"
+
+    config['_train_steps'] = 10000
+
+    config['_call']['name'] = "adversarial_external_sb"
+    config['_call']['num_samples'] = 1
+    return config
+
+
 
 def get_config_test():
     """One trial."""
     # try changing learning rate
     config = get_default_config()
 
-    config['train_batch_size'] = 2048
-    config['lr'] = 1e-4
-    config['sgd_minibatch_size'] = 512
-    config['num_sgd_iter'] = 1
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
     config['rollout_fragment_length'] = 128
-    config['num_workers'] = 4
+    config['num_workers'] = 3
     
-    config['num_envs_per_worker'] = 4
+    config['num_envs_per_worker'] = 10
 
     # ['humanoid_blocker', 'humanoid'],
-    config['_train_policies'] = ['player_1', 'player_2']
+    config['_train_policies'] = ['player_1']
     config['num_gpus'] = 0
+    config['_train_steps'] = 10000
+    config["batch_mode"] = "complete_episodes"
 
     config['_trainer'] = "PPO"
     config['_policy'] = "PPO"
+    config['_call']['name'] = "adversarial_test"
+    config['_call']['num_samples'] = 1
 
-    config['_run_inline'] = True
+    #config['_run_inline'] = True
 
-    config['_train_steps'] = 10
     return config
 
 
@@ -644,15 +683,17 @@ CONFIGS = {'test': get_config_test(),
            'bursts_exp': get_config_bursts_exp(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
            'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
-
+           'external': get_config_test_external(),
           }
 
 TRAINERS = {'PPO': PPOTrainer,
             'APPO': APPOTrainer,
-            'ES': ESTrainer,}
+            'ES': ESTrainer,
+            'External': ExternalTrainer}
 POLICIES = {'PPO': PPOTFPolicy,
             'APPO': AsyncPPOTFPolicy,
-            'ES': ESTFPolicy}
+            'ES': ESTFPolicy,
+            'External': PPOTFPolicy}
 
 
 def get_agent_config(agent_id, which, obs_space, act_space, config):
@@ -663,12 +704,29 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
                 "agent_id": agent_id - 1,
                 "env_name": config['_env']['env_name'],
                 "model_config": {},
-                "name": "model_%s" % (agent_id - 1)
+                "name": "model_%s" % (agent_id - 1),
+                "load_weights": True,
             },
         },
 
         "framework": config['framework'],
     })
+    
+    agent_config_from_scratch_sb = (POLICIES[config['_trainer']], obs_space, act_space, {
+        'model': {
+            "custom_model": "GymCompetePretrainedModel",
+            "custom_model_config": {
+                "agent_id": agent_id - 1,
+                "env_name": config['_env']['env_name'],
+                "model_config": {},
+                "name": "model_%s" % (agent_id - 1),
+                "load_weights": False,
+            },
+        },
+
+        "framework": config['framework'],
+    })
+
 
     agent_config_from_scratch = (POLICIES[config['_trainer']], obs_space, act_space, {
         "model": {
@@ -679,6 +737,7 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
     })
 
     configs = {"pretrained": agent_config_pretrained,
-               "from_scratch": agent_config_from_scratch}
+               "from_scratch": agent_config_from_scratch,
+               "from_scratch_sb": agent_config_from_scratch_sb}
 
     return configs[which]

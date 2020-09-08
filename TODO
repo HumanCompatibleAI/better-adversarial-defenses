@@ -1,0 +1,6 @@
+1. move additional frameworks to a separate directory
+2. reusable code (gym_compete_rllib and frankenstein) as modules with documentation, maybe setup.py
+3. separate directory for experiment analysis
+4. README, conda environment files, give some starter set of commands on how to run the code
+5. Separate directory for data (.pkl results)
+6. Describe how to use multicomp->rllib envs, how to use rllib-sb trainer

@@ -1,4 +1,5 @@
 MUJOCO_LOG.TXT
+*policy*.pkl
 src
 *_log.txt
 video/

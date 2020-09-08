@@ -75,10 +75,12 @@ class DiagonalNormalSamplingLayer(tf.keras.layers.Layer):
     
 class UnconnectedVariableLayer(tf.keras.layers.Layer):
     """Layer which outputs a trainable variable on a call."""
-    def __init__(self, shape, name):
+    def __init__(self, shape, name, initializer=None):
         super(UnconnectedVariableLayer, self).__init__(name=name)
+        if initializer is None:
+            initializer = tf.keras.initializers.Zeros()
         self.v = self.add_weight(
-            shape=(1,) + shape, initializer=tf.keras.initializers.Zeros(),
+            shape=(1,) + shape, initializer=initializer,
             trainable=True, name="var/" + name)
         
     def call(self, inputs):
