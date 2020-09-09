@@ -1,3 +1,8 @@
+# openai gym stuff
+openaigym.*.stats.json
+openaigym.*.meta.json
+openaigym.*.manifest.json
+
 MUJOCO_LOG.TXT
 *policy*.pkl
 src

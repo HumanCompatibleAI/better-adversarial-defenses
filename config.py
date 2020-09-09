@@ -504,7 +504,7 @@ def get_config_cartpole_external():
     config['_trainer'] = "External"
     config['_policy'] = "PPO"
 
-    config['_run_inline'] = True
+    #config['_run_inline'] = True
     config["batch_mode"] = "complete_episodes"
     config["http_remote_port"] = "http://127.0.0.1:50001"
 

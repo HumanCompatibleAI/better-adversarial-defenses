@@ -83,6 +83,9 @@ def train_external(policies, samples, config):
     infos = {}
     answer_paths = {}
     data_paths = {}
+
+    if config['lr'] == 0:
+        return {}
     
     for policy in policies:
         # only training the requested policies

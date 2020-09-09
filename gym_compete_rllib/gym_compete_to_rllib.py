@@ -8,6 +8,7 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.tune.registry import register_env
+from gym.wrappers import Monitor
 
 from gym_compete_rllib.layers import UnconnectedVariableLayer
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
@@ -362,12 +363,15 @@ created_envs = []
 
 def create_env(config):
     if config['with_video']:
-        env = gym_compete_env_with_video(config['env_name'])
+        if config['env_name'].startswith('multicomp'):
+            env = gym_compete_env_with_video(config['env_name'])
+        else:
+            env = Monitor(gym.make(config['env_name']), directory='./', force=True)
     else:
         env = gym.make(config['env_name'])
+    created_envs.append(env)
     if config['SingleAgentToMultiAgent']:
         env = SingleAgentToMultiAgent(env)
-    created_envs.append(env)
     if config['env_name'].startswith('multicomp'):
         env = GymCompeteToRLLibAdapter(lambda: env)
     return env

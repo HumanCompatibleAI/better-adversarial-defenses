@@ -3,6 +3,8 @@ import argparse
 parser = argparse.ArgumentParser(description='Produce a video from a checkpoint.')
 parser.add_argument('--checkpoint', type=str,
                     help='Checkpoint file', required=True)
+parser.add_argument('--config', type=str,
+                    help='Config to load', default='test')
 parser.add_argument('--steps', type=int, default=10,
                     help='Evaluation steps')
 parser.add_argument('--load_normal', type=bool, default=False,
@@ -16,7 +18,8 @@ def make_video(args):
     import os
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     from gym_compete_rllib.gym_compete_to_rllib import created_envs
-    from train import build_trainer_config, ray_init
+    from train import ray_init
+    from config import build_trainer_config
     import config
     from config import TRAINERS
     import pickle, json, codecs
@@ -28,7 +31,8 @@ def make_video(args):
     
     os.environ['DISPLAY'] = args.display
     
-    config = config.get_config_test_external()
+    assert args.config in config.CONFIGS, f"Wrong config {args.config}, options are {config.CONFIGS.keys()}"
+    config = config.CONFIGS[args.config]
 
     config['_train_policies'] = []
     config['_train_steps'] = args.steps
@@ -85,12 +89,18 @@ def make_video(args):
     results['losses'] = losses
     results['ties'] = ties
 
-
     if not args.no_video:
         print("Your video is in")
-        v = created_envs[-1].video_recorder.path
+        recorder = created_envs[-1].video_recorder
+        if hasattr(recorder, 'path'):
+            v = recorder.path
+            print(v)
+        else:
+            v = created_envs[-1].videos
+            v = [x[0] for x in v]
+            for x in v:
+                print(x)
         results['video'] = v
-        print(v)
 
     return results
 
