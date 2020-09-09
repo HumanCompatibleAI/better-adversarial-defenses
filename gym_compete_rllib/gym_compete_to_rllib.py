@@ -87,8 +87,7 @@ class MultiAgentToSingleAgent(gym.Env):
 class SingleAgentToMultiAgent(MultiAgentEnv):
     """Takes single-agent env and makes a multi-agent RLLib env."""
 
-    def __init__(self, env_cls, player_name=None):
-        env = env_cls()
+    def __init__(self, env, player_name=None):
         super(SingleAgentToMultiAgent, self).__init__()
         if player_name is None:
             player_name = "player_1"
@@ -115,17 +114,16 @@ class SingleAgentToMultiAgent(MultiAgentEnv):
         return dct[self.player_names[0]]
 
     def reset(self):
-        observations = self._env.reset()
-        return dct_to_float32(self.pack_array(observations))
+        observation = self._env.reset()
+        return dct_to_float32(self.pack_value(observation))
 
     def step(self, action_dict):
-        default_action = np.zeros(self.observation_space.shape)
-        action = self.unpack_dict(action_dict, default_action)
+        action = self.unpack_dict(action_dict)
         obs, rew, done, info = self._env.step(action)
         obss = self.pack_value(obs)
         rews = self.pack_value(rew)
         infos = self.pack_value(info)
-        dones = self.pack_array(done)
+        dones = self.pack_value(done)
         dones['__all__'] = done
 
         rews = dct_to_float32(rews)

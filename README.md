@@ -14,6 +14,14 @@ Options: `--load_normal True` to evaluate against normal opponent instead of the
 To train:
 `python train.py --tune xxx` where `xxx` is one of the settings in `config.py` from `CONFIGS` variable.
 
+Running Stable Baselines server:
+`(tf1) $ python frankenstein/stable_baselines_server.py`
+
+Training in Inverted Pendulum (single-agent):
+`python train.py --tune external_cartpole`
+
+Log files will appear in `~/ray_results/run_type/run_name`. Use tensorboard in this folder. Checkpoints will be in `~/ray_results/iteration_name` where `iteration_name` can be obtained from `run_type/run_name` in variable `checkpoint_rllib`.
+
 ## Rendering in MuJoCo
 1. Install MuJoCo 1.13
 2. Run Xvfb: `Xvfb -screen 0 1024x768x24`

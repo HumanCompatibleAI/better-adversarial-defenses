@@ -490,9 +490,9 @@ def get_config_cartpole_external():
     config['sgd_minibatch_size'] = 1026
     config['num_sgd_iter'] = 4
     config['rollout_fragment_length'] = 100
-    config['num_workers'] = 0
+    config['num_workers'] = 4
 
-    config['num_envs_per_worker'] = 1
+    config['num_envs_per_worker'] = 8
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
@@ -864,6 +864,7 @@ CONFIGS = {'test': get_config_test(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
            'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
            'external': get_config_test_external(),
+           'external_cartpole': get_config_cartpole_external(),
            'sample_speed': get_config_sample_speed(),
            }
 
