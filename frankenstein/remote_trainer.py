@@ -74,34 +74,6 @@ def rllib_samples_to_dict(samples):
     samples = {x: dict(y) for x, y in samples.items()}
     return samples
 
-def filter_dict_pickleable(d, do_print=False):
-    """Keep only simple types, recurse."""
-    result = {}
-    allowed_types = [int, float, np.ndarray, list, dict, set, bool, str, type(None)]
-    deleted_info = '_deleted'
-    for x, y in d.items():
-        if isinstance(y, dict):
-            result[x] = filter_dict_pickleable(y, do_print=do_print)
-        elif type(y) in allowed_types:
-            result[x] = y
-        else:
-            if do_print:
-                print('deleting', x, y)
-            result[x] = deleted_info
-    return result
-
-def dict_get_any_value(d):
-    """Return any value of a dict."""
-    return list(d.values())[0]
-
-def unlink_ignore_error(p):
-    """Unlink without complaining if the file does not exist."""
-    try:
-        os.unlink(p)
-    except:
-        pass
-
-
 
 def train_external(policies, samples, config):
     """Train using a TCP stable_baselines server."""
@@ -128,7 +100,12 @@ def train_external(policies, samples, config):
         data_policy = {}
         
         # config to send
+        config_orig = deepcopy(config)
         config = filter_dict_pickleable(config)
+        p = dict_get_any_value(config['multiagent']['policies'])
+        obs_space, act_space = p[1], p[2]
+        config['_observation_space'] = obs_space
+        config['_action_space'] = act_space
         
         # data: rollouts and weights
         data_policy['rollouts'] = rllib_samples_to_dict(samples)[policy]

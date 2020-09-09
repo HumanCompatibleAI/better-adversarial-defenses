@@ -8,14 +8,11 @@ example.
 """
 
 from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
-from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.envs.gym import make as gym_make
 from rlpyt.algos.qpg.sac import SAC
 from rlpyt.agents.qpg.sac_agent import SacAgent
 from rlpyt.runners.minibatch_rl import MinibatchRlEval
 from rlpyt.utils.logging.context import logger_context
-import gym_compete_rllib.single_agent_env
-
 
 
 def build_and_train(env_id="Hopper-v3", run_ID=0, cuda_idx=None):

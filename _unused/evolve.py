@@ -2,13 +2,9 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 from gym_compete_rllib.gym_compete_to_rllib import create_env, MultiAgentToSingleAgent, model_to_callable
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
-from gym_compete_rllib.test_single_agent_env import episode
-import gym
+from _unused.test_single_agent_env import episode
 import numpy as np
-from tqdm import tqdm
-from matplotlib import pyplot as plt
 import ray
-from time import time
 import neat
 import pickle
 

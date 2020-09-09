@@ -1,8 +1,65 @@
-import pandas as pd
-from tqdm import tqdm
-import numpy as np
 import json
 import numbers
+import os
+
+import numpy as np
+import pandas as pd
+import ray.tune as tune
+from tqdm import tqdm
+
+
+def dict_to_sacred(ex, d, iteration, prefix=''):
+    """Log a dictionary to sacred."""
+    for k, v in d.items():
+        if isinstance(v, dict):
+            dict_to_sacred(ex, v, iteration, prefix=prefix + k + '/')
+        elif isinstance(v, float) or isinstance(v, int):
+            ex.log_scalar(prefix + k, v, iteration)
+
+
+def tune_compose(obj, f):
+    """Apply f after sampling from obj."""
+    return tune.sample_from(lambda x: f(obj.func(x)))
+
+
+def tune_int(obj):
+    """Convert result to int after sampling from obj."""
+    return tune_compose(obj, round)
+
+
+def sample_int(obj):
+    """Convert tune distribution to integer, backward-compatible name."""
+    return tune_int(obj)
+
+
+def filter_dict_pickleable(d, do_print=False):
+    """Keep only simple types in a dict, recurse."""
+    result = {}
+    allowed_types = [int, float, np.ndarray, list, dict, set, bool, str, type(None)]
+    deleted_info = '_deleted'
+    for x, y in d.items():
+        if isinstance(y, dict):
+            result[x] = filter_dict_pickleable(y, do_print=do_print)
+        elif type(y) in allowed_types:
+            result[x] = y
+        else:
+            if do_print:
+                print('deleting', x, y)
+            result[x] = deleted_info
+    return result
+
+
+def dict_get_any_value(d):
+    """Return any value of a dict."""
+    return list(d.values())[0]
+
+
+def unlink_ignore_error(p):
+    """Unlink without complaining if the file does not exist."""
+    try:
+        os.unlink(p)
+    except:
+        pass
 
 
 def flatten_dict_keys(dct, prefix='', separator='/'):
@@ -17,6 +74,7 @@ def flatten_dict_keys(dct, prefix='', separator='/'):
             result[prefix + key] = value
     return result
 
+
 def read_json_array_flat(logdir):
     """Read results.json from tune logdir."""
     data_current = []
@@ -25,6 +83,7 @@ def read_json_array_flat(logdir):
         dict_current = flatten_dict_keys(data)
         data_current.append(dict_current)
     return data_current
+
 
 def get_df_from_logdir(logdir, do_tqdm=True):
     """Obtain a dataframe from tune logdir."""
@@ -60,14 +119,15 @@ def get_df_from_logdir(logdir, do_tqdm=True):
                 line[key] = None
 
     df_current = pd.DataFrame(data_current)
-    
+
     return df_current
 
-def fill_which_training(rdf):
+
+def fill_which_training(rdf, policies):
     """Fill data on which player is being trained."""
     which_training_arr = []
     for _, line in rdf.iterrows():
-        currently_training = set([p for p in policies if  not np.isnan(line[f"info/learner/{p}/total_loss"])])
+        currently_training = set([p for p in policies if not np.isnan(line[f"info/learner/{p}/total_loss"])])
         assert len(currently_training) == 1
         which_training = int(list(currently_training)[0].split('_')[1])
         which_training_arr.append(which_training)
@@ -75,7 +135,8 @@ def fill_which_training(rdf):
     rdf['which_training'] = which_training_arr
     return rdf
 
-def burst_sizes(lst):
+
+def burst_sizes(wt):
     """Get burst sizes from a list of players being trained at iterations."""
     prev_val = 0
     current = 0

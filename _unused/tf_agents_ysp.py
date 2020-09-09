@@ -36,13 +36,12 @@ from absl import flags
 from absl import logging
 
 import gin
-import gym_compete_rllib.single_agent_env
 import tensorflow as tf  # pylint: disable=g-explicit-tensorflow-version-import
 
 from tf_agents.agents.ppo import ppo_clip_agent
 from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.environments import parallel_py_environment
-from tf_agents.environments import suite_mujoco, suite_gym
+from tf_agents.environments import suite_gym
 from tf_agents.environments import tf_py_environment
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
@@ -77,8 +76,6 @@ flags.DEFINE_integer('num_eval_episodes', 30,
 flags.DEFINE_boolean('use_rnns', False,
                      'If true, use RNN for policy and value function.')
 FLAGS = flags.FLAGS
-
-import gym
 
 
 @gin.configurable

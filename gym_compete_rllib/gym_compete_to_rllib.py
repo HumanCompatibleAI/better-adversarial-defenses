@@ -1,14 +1,16 @@
-from ray.rllib.models.tf.tf_modelv2 import TFModelV2
-from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
-from ray.tune.registry import register_env
-import datetime, uuid
-from gym_compete_rllib.layers import UnconnectedVariableLayer
-from ray.rllib.env.multi_agent_env import MultiAgentEnv
+import datetime
+import uuid
+
 import gym
 import numpy as np
 import tensorflow as tf
-import gym_compete
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.models import ModelCatalog
+from ray.rllib.models.tf.tf_modelv2 import TFModelV2
+from ray.tune.registry import register_env
+
+from gym_compete_rllib.layers import UnconnectedVariableLayer
+from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
 
 # scaler for reward output for players
 REWARD_SCALER = 1. / 100
@@ -21,13 +23,16 @@ def dct_to_float32(d):
 
 def model_to_callable(m):
     """Convert a Keras model to a callable for a single object."""
+
     def f(x):
         return m(np.array([x])).numpy()[0]
+
     return f
 
 
 class MultiAgentToSingleAgent(gym.Env):
     """Embed an agent into a multi-agent environment."""
+
     def __init__(self, env_config):
         self._env = env_config['env']
         self.action_space = self._env.action_space
@@ -35,13 +40,13 @@ class MultiAgentToSingleAgent(gym.Env):
         self.policies = env_config['policies']
         self.players = []
         self.previous_obs = {}
-        
+
     @staticmethod
     def dict_single_value(d):
         """Get single value in a dict."""
         assert len(d) == 1, f"Must have only 1 key, got {d.keys()}"
         return list(d.values())[0]
-    
+
     def other_player_value(self, d, check_len=True, default=None):
         """Get value for the remaining player."""
         if check_len and default is None:
@@ -50,16 +55,16 @@ class MultiAgentToSingleAgent(gym.Env):
             if k not in self.policies:
                 return v
         return default
-        
+
     def render(self, *args, **kwargs):
         return self._env.render(*args, **kwargs)
-        
+
     def reset(self):
         obs = self._env.reset()
         self.players = list(obs.keys())
         self.previous_obs = obs
         return self.other_player_value(obs)
-    
+
     def step(self, action):
         actions = {}
         for p in self.players:
@@ -68,14 +73,14 @@ class MultiAgentToSingleAgent(gym.Env):
                 actions[p] = policy(self.previous_obs[p])
             else:
                 actions[p] = action
-                
+
         obss, rews, dones, infos = self._env.step(actions)
         if obss:
             self.previous_obs = obss
         else:
             obss = self.previous_obs
-                
-        return self.other_player_value(obss), self.other_player_value(rews, default=np.array(0, dtype=np.float32)),\
+
+        return self.other_player_value(obss), self.other_player_value(rews, default=np.array(0, dtype=np.float32)), \
                self.other_player_value(dones, check_len=False), self.other_player_value(infos, check_len=False)
 
 
@@ -114,7 +119,7 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         observations = self._env.reset()
         return dct_to_float32(self.pack_array(observations))
 
-    def step(self, action_dict, reward_scaler=REWARD_SCALER):        
+    def step(self, action_dict, reward_scaler=REWARD_SCALER):
         default_action = np.zeros(self.observation_space.shape)
         a1a2 = self.unpack_dict(action_dict, default_action)
         o1o2, r1r2, done, i1i2 = self._env.step(a1a2)
@@ -141,10 +146,10 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         # for adversarial training
         if 'player_1' in rew:
             rew['player_1'] = -infos['player_2']['reward_remaining'] * reward_scaler
-            
+
         rew = dct_to_float32(rew)
         obs = dct_to_float32(obs)
-        
+
         return obs, rew, dones, infos
 
     @property
@@ -188,7 +193,9 @@ class GymCompetePretrainedModel(KerasModelModel):
         env_name = args[3]['custom_model_config']['env_name']
         agent_id = args[3]['custom_model_config']['agent_id']
         load_weights = args[3]['custom_model_config']['load_weights']
-        nets = get_policy_value_nets(env_name, agent_id, load_weights=load_weights)
+        obs_space, act_space = args[1], args[2]
+        obs_dim, act_dim = obs_space.shape[0], act_space.shape[0]
+        nets = get_policy_value_nets(env_name, agent_id, load_weights=load_weights, act_dim=act_dim, obs_dim=obs_dim)
         value_net_postproc_layer = nets['value'].layers[-1]
         value_net_postproc_layer.set_weights([x * REWARD_SCALER for x in value_net_postproc_layer.get_weights()])
         self._nets = nets
@@ -196,17 +203,18 @@ class GymCompetePretrainedModel(KerasModelModel):
         super(GymCompetePretrainedModel, self).__init__(*args, **kwargs,
                                                         policy_net=nets['policy_mean_logstd_flat'],
                                                         value_net=nets['value'])
+
+
 class LinearModel(KerasModelModel):
     """Linear model."""
 
     def __init__(self, *args, **kwargs):
-
         x = tf.keras.Input(shape=(380,))
         y = tf.keras.layers.Dense(17, activation=None, use_bias=True)(x)
         model_policy_mean = y
         model_policy_mean = tf.keras.layers.Reshape((17, 1), name='reshape_mean')(model_policy_mean)
         model_policy_inp = x
-        
+
         model_policy_std = UnconnectedVariableLayer(name='std', shape=(17,))(x)
         model_policy_std = tf.keras.layers.Reshape((17, 1), name='reshape_std')(model_policy_std)
         model_policy_mean_std_ = tf.keras.layers.Concatenate(axis=2)([model_policy_mean, model_policy_std])
@@ -221,8 +229,8 @@ class LinearModel(KerasModelModel):
         value_net = tf.keras.models.Model(inputs=x, outputs=y)
 
         super(LinearModel, self).__init__(*args, **kwargs,
-                                                        policy_net=policy_net,
-                                                        value_net=value_net)
+                                          policy_net=policy_net,
+                                          value_net=value_net)
 
 
 ModelCatalog.register_custom_model("GymCompetePretrainedModel", GymCompetePretrainedModel)
@@ -258,7 +266,7 @@ def gym_compete_env_with_video(env_name, directory=None):
 
     # print(config)
     # config['video_params']['annotation_params']['font'] = '/home/sergei/.fonts/times'
-    
+
     resolution = config['video_params']['annotation_params']['resolution']
     # print(resolution)
     # resolution = [480, 270]

@@ -1,9 +1,13 @@
+import os
+import re
+
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
-import os, re
+
 
 def load_one(env_name, agent_id):
     nets = get_policy_value_nets(env_name, agent_id)
     assert isinstance(nets, dict), "Can't load %s %d" % (env_name, agent_id)
+
 
 def test_load():
     zoo_path = '../multiagent-competition/gym_compete/agent_zoo'
@@ -32,6 +36,7 @@ def test_load():
     print("Total errors: %d out of %d" % (errors, total_calls))
     for (e, agent, v, exc) in results:
         print(e, agent, v, exc)
+
 
 if __name__ == '__main__':
     test_load()
