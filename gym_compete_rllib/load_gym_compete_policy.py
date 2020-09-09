@@ -14,6 +14,7 @@ pickle_path = '/scratch/sergei/better-adversarial-defenses/multiagent-competitio
 
 # hidden dimension of mlp
 hid_dim = 64
+CLIP_OBS_DEFAULT = 5
 
 
 def get_variables_spec(obs_dim, hid_dim, act_dim):
@@ -80,17 +81,21 @@ def nets_to_weights(nets):
     variable_to_w = {}
     variable_to_w['logstd:0'] = nets['policy'].layers[5].get_weights()[0]
 
-    REWARD_SCALER = 1e-2
+    mean_ret, std_ret = [x[0] for x in nets['value'].layers[-1].get_weights()]
+    mean_obs, std_obs, _ = nets['value'].layers[0].get_weights()
+
+    keep_vars_estimated = {
+	'retfilter/count:0': 1,
+	'obsfilter/count:0': 1,
+	'retfilter/sum:0': mean_ret,
+	'retfilter/sumsq:0': std_ret ** 2 + mean_ret ** 2,
+	'obsfilter/sum:0': mean_obs,
+	'obsfilter/sumsq:0': std_obs ** 2 + mean_obs ** 2,
+    }
 
     for var in keep_vars:
-        if var == 'retfilter/sum:0':
-            coeff = REWARD_SCALER
-        elif var == 'retfilter/sumsq:0':
-            coeff = REWARD_SCALER ** 2
-        else:
-            coeff = 1
-        print(var, coeff)
-        variable_to_w[var] = nets['variables'][var] * coeff
+        variable_to_w[var] = np.array(keep_vars_estimated[var])
+
     nets_mapping = [('pol', nets['policy'], 2), ('vff', nets['value'], 1)]
     layer_names = ['1', '2', 'final']
     var_types = [('w', 0), ('b', 1)]
@@ -136,7 +141,7 @@ def nets_to_weight_array(nets, check_content_id=False):
     return vars_compressed
 
 
-def load_weights_from_vars(variables, value_net, policy_net):
+def load_weights_from_vars(variables, value_net, policy_net, clip_obs=CLIP_OBS_DEFAULT):
     """Load weights from variables dict into keras networks."""
     layer_names = ['1', '2', 'final']
     # name in old vars, new model, layer offset
@@ -150,6 +155,12 @@ def load_weights_from_vars(variables, value_net, policy_net):
 
     # setting LOGstd value
     policy_net.layers[-5].set_weights([variables['logstd:0']])
+    obs_preproc_weights = [*normalizer_mean_std(variables, 'obs'), np.array([clip_obs])]
+    value_postproc_weights = [np.array(x).reshape((1,)) for x in [*normalizer_mean_std(variables, 'ret')]]
+
+    policy_net.layers[1].set_weights(obs_preproc_weights)
+    value_net.layers[0].set_weights(obs_preproc_weights)
+    value_net.layers[-1].set_weights(value_postproc_weights)
 
 
 def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables_spec=None, version=1,
@@ -232,12 +243,8 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
         results['variables'] = variables
         results['weights_unpickle'] = policy_unpickle
 
-        results['policy'].layers[0].set_weights(*normalizer_mean_std(variables, 'obs'), clip_obs)
-        results['value'].layers[0].set_weights(*normalizer_mean_std(variables, 'obs'), clip_obs)
-        results['value'].layers[-1].set_weights(*normalizer_mean_std(variables, 'ret'))
-
         # loading weights
-        load_weights_from_vars(variables, results['value'], results['policy'])
+        load_weights_from_vars(variables, results['value'], results['policy'], clip_obs)
 
     return results
 

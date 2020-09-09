@@ -24,6 +24,7 @@ import uuid
 
 import ray
 from ray import tune
+from time import sleep
 from ray.tune import track
 
 import math
@@ -68,6 +69,8 @@ from ray.rllib.execution.rollout_ops import ParallelRollouts, ConcatBatches,    
 from ray.rllib.execution.train_ops import TrainOneStep, TrainTFMultiGPU
 from ray.rllib.execution.metric_ops import StandardMetricsReporting
 
+from helpers import filter_dict_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
+
 def rllib_samples_to_dict(samples):
     """Convert rllib MultiAgentBatch to a dict."""
     samples = samples.policy_batches
@@ -78,6 +81,8 @@ def rllib_samples_to_dict(samples):
 def train_external(policies, samples, config):
     """Train using a TCP stable_baselines server."""
     infos = {}
+    answer_paths = {}
+    data_paths = {}
     
     for policy in policies:
         # only training the requested policies
@@ -102,10 +107,10 @@ def train_external(policies, samples, config):
         # config to send
         config_orig = deepcopy(config)
         config = filter_dict_pickleable(config)
-        p = dict_get_any_value(config['multiagent']['policies'])
+        p = dict_get_any_value(config_orig['multiagent']['policies'])
         obs_space, act_space = p[1], p[2]
-        config['_observation_space'] = obs_space
-        config['_action_space'] = act_space
+        config['_observation_space'] = save_gym_space(obs_space)
+        config['_action_space'] = save_gym_space(act_space)
         
         # data: rollouts and weights
         data_policy['rollouts'] = rllib_samples_to_dict(samples)[policy]
@@ -114,35 +119,51 @@ def train_external(policies, samples, config):
 
         # paths for data/answer
         data_path = run_policy_step_uid + '.pkl'
-        answer_path = run_policy_step_uid + '_answer.pkl'
+        answer_path = run_policy_step_uid + '.answer.pkl'
+        data_paths[policy] = data_path
+        answer_paths[policy] = answer_path
         
         # saving pickle data
         pickle.dump(data_policy, open(data_path, 'wb'))
 
         # connecting to the RPC server
         client = HTTPClient(config['http_remote_port'])
-        result = client.process(run_policy_uid, uid=0, config=config, data_path=data_path, answer_path=answer_path).data.result
-        
-        # checking for result correctness
-        if result != True:
-            raise ValueError("Wrong result", str(result))
+        result = client.process(run_policy_uid, uid=0, data_path=data_path, answer_path=answer_path).data.result
+
+        assert result == True, str(result)
+
+
+    for policy in policies:
+        answer_path = answer_paths[policy]
+        data_path = data_paths[policy]
 
         # loading weights and information
-        weights_info = pickle.load(open(answer_path, 'rb'))
-        weights = weights_info['weights']
-        info = weights_info['info']
+        while True:
+            try:
+                weights_info = pickle.load(open(answer_path, 'rb'))
+                break
+            except Exception as e:
+                print(e, "Waiting")
+                sleep(0.5)
+
+        if not (weights_info[0] == True):
+            raise Exception(weights_info[1])
+        
+        weights = weights_info[1]['weights']
+        info = weights_info[1]['info']
 
         # loading weights into the model
         def load_weights(model, weights):
             """Load weights into a model."""
             load_weights_from_vars(weights, model._nets['value'], model._nets['policy'])
+
         load_weights(policies[policy].model, weights)
 
         # removing pickle files to save space
         unlink_ignore_error(data_path)
         unlink_ignore_error(answer_path)
         
-        infos[policy] = (dict(info))
+        infos[policy] = dict(info)
         
     return infos
 

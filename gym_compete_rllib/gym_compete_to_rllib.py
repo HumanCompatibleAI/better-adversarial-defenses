@@ -84,6 +84,66 @@ class MultiAgentToSingleAgent(gym.Env):
                self.other_player_value(dones, check_len=False), self.other_player_value(infos, check_len=False)
 
 
+class SingleAgentToMultiAgent(MultiAgentEnv):
+    """Takes single-agent env and makes a multi-agent RLLib env."""
+
+    def __init__(self, env_cls, player_name=None):
+        env = env_cls()
+        super(SingleAgentToMultiAgent, self).__init__()
+        if player_name is None:
+            player_name = "player_1"
+        self.player_names = [player_name]
+        self.n_policies = 1
+        self._env = env
+
+        self.reset_dones()
+
+    def close(self):
+        self._env.close()
+
+    def reset_dones(self):
+        self.dones = {name: False for name in self.player_names}
+
+    def pack_value(self, value):
+        """Given a value, return multi-agent dict."""
+        assert len(self.player_names) == 1
+        return {self.player_names[0]: value}
+
+    def unpack_dict(self, dct):
+        """Given a dict player->value return the value."""
+        assert len(dct) == 1
+        return dct[self.player_names[0]]
+
+    def reset(self):
+        observations = self._env.reset()
+        return dct_to_float32(self.pack_array(observations))
+
+    def step(self, action_dict):
+        default_action = np.zeros(self.observation_space.shape)
+        action = self.unpack_dict(action_dict, default_action)
+        obs, rew, done, info = self._env.step(action)
+        obss = self.pack_value(obs)
+        rews = self.pack_value(rew)
+        infos = self.pack_value(info)
+        dones = self.pack_array(done)
+        dones['__all__'] = done
+
+        rews = dct_to_float32(rews)
+        obss = dct_to_float32(obss)
+
+        return obss, rews, dones, infos
+
+    @property
+    def observation_space(self):
+        return self._env.observation_space
+
+    @property
+    def action_space(self):
+        return self._env.action_space
+
+    def render(self, *args, **kwargs):
+        return self._env.render(*args, **kwargs)
+
 class GymCompeteToRLLibAdapter(MultiAgentEnv):
     """Takes gym_compete env and makes a multi-agent RLLib env."""
 
@@ -193,8 +253,17 @@ class GymCompetePretrainedModel(KerasModelModel):
         env_name = args[3]['custom_model_config']['env_name']
         agent_id = args[3]['custom_model_config']['agent_id']
         load_weights = args[3]['custom_model_config']['load_weights']
-        obs_space, act_space = args[1], args[2]
-        obs_dim, act_dim = obs_space.shape[0], act_space.shape[0]
+        obs_space, act_space = args[0], args[1]
+        def get_dim(x):
+            """Get dimension of a gym space."""
+            if isinstance(x, int):
+                return x
+            elif isinstance(x, gym.spaces.Box):
+                assert len(x.shape) == 1, f"Only support flat spaces, got {x}, {x.shape}, {type(x)}"
+                return x.shape[0]
+            else:
+                raise TypeError(f"Unknown space {x} {type(x)}")
+        obs_dim, act_dim = [get_dim(x) for x in [obs_space, act_space]]
         nets = get_policy_value_nets(env_name, agent_id, load_weights=load_weights, act_dim=act_dim, obs_dim=obs_dim)
         value_net_postproc_layer = nets['value'].layers[-1]
         value_net_postproc_layer.set_weights([x * REWARD_SCALER for x in value_net_postproc_layer.get_weights()])
@@ -298,8 +367,12 @@ def create_env(config):
         env = gym_compete_env_with_video(config['env_name'])
     else:
         env = gym.make(config['env_name'])
+    if config['SingleAgentToMultiAgent']:
+        env = SingleAgentToMultiAgent(env)
     created_envs.append(env)
-    return GymCompeteToRLLibAdapter(lambda: env)
+    if config['env_name'].startswith('multicomp'):
+        env = GymCompeteToRLLibAdapter(lambda: env)
+    return env
 
 
 register_env("multicomp", create_env)

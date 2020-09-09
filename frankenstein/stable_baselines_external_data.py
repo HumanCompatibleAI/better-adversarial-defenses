@@ -12,6 +12,7 @@ from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines import PPO2 as PPO
 from stable_baselines import logger
 from stable_baselines.common import callbacks
+from helpers import load_gym_space
 from stable_baselines.logger import KVWriter, SeqWriter, DEBUG
 from stable_baselines.ppo2.ppo2 import Runner as PPORunner
 
@@ -20,8 +21,8 @@ class dummy_env(object):
     """Dummy environment to give something as output."""
     def __init__(self, config):
         self.metadata = {}
-        self.observation_space = config['_observation_space']
-        self.action_space = config['_action_space']
+        self.observation_space = load_gym_space(config['_observation_space'])
+        self.action_space = load_gym_space(config['_action_space'])
 
 class mock_vanilla_runner(PPORunner):
     #def __init__(self, rollouts, weights, env, true_model, gamma, lam):

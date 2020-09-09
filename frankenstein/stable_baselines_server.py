@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
-from frankenstein.stable_baselines_external_data import SBPPORemoteData
+from stable_baselines_external_data import SBPPORemoteData
 
 from multiprocessing import Queue as queue
 import pickle
 import multiprocessing
 import traceback
+from tornado import web
+import shutil
+from jsonrpcserver import method, dispatch as dispatch, serve
+import argparse
 
-
-# In[ ]:
+parser = argparse.ArgumentParser(description='Launch the multiprocess stable baselines server.')
+parser.add_argument('--port', metavar='N', default=50001,
+                    help='port to listen on')
 
 
 class MultipleWorker(object):
@@ -22,7 +24,6 @@ class MultipleWorker(object):
         """Initialize with zero workers."""
         self.workers = set()
         self.kwargs_queues = {}
-        self.return_queues = {}
         self.worker_processes = {}
         assert hasattr(self, '_process_fcn'), "Please implement _process_fcn"
         self._process_init()
@@ -33,11 +34,13 @@ class MultipleWorker(object):
         while True:
             kwargs = pickle.loads(self.kwargs_queues[worker_id].get())
             try:
-                result = self._process_fcn(**kwargs, worker_id=worker_id)
+                result = (True, self._process_fcn(**kwargs, worker_id=worker_id))
             except Exception as e:
-                result = ("Exception", traceback.format_exc())
+                result = (False, traceback.format_exc())
                 print(result[1])
-            self.return_queues[worker_id].put(pickle.dumps(result))
+            fn = kwargs['answer_path']
+            pickle.dump(result, open(fn + "_", 'wb'))
+            shutil.move(fn + "_", fn)
             
     def _process_init(self):
         """Initialize client code."""
@@ -55,7 +58,6 @@ class MultipleWorker(object):
         else:
             self.workers.add(worker_id)
             self.kwargs_queues[worker_id] = queue()
-            self.return_queues[worker_id] = queue()
             self.worker_processes[worker_id] = multiprocessing.Process(target=self.target_process,
                                                                        kwargs=dict(worker_id=worker_id))
             self.worker_processes[worker_id].start()
@@ -66,8 +68,7 @@ class MultipleWorker(object):
             print("Creating worker", worker_id)
             self.new_worker(worker_id)
         self.kwargs_queues[worker_id].put(pickle.dumps(kwargs))
-        res = self.return_queues[worker_id].get()
-        return pickle.loads(res)
+        return True
     
     def __del__(self):
         """Close all processes."""
@@ -99,34 +100,21 @@ class MultipleWorkerTrainer(MultipleWorker):
     def _process_init(self):
         self.trainer = None
     
-    def _process_fcn(self, uid, config, data_path, answer_path, worker_id):
+    def _process_fcn(self, uid, data_path, answer_path, worker_id):
         if self.trainer is None:
             self.trainer = MultiStepTrainer()
-        print("Process call", uid, data_path, worker_id)
-        self.trainer.create(uid, config)
         data = pickle.load(open(data_path, 'rb'))
         rollouts = data['rollouts']
         weights = data['weights']
+        config = data['config']
+        print("Process call", uid, data_path, worker_id)
+        self.trainer.create(uid, config)
         
         result = self.trainer.process(uid, rollouts, weights)
         
-        pickle.dump(result, open(answer_path, 'wb'))
-        return True
+        return result
 
 
-# In[5]:
-
-
-from tornado import web
-from jsonrpcserver import method, dispatch as dispatch, serve
-import argparse
-
-parser = argparse.ArgumentParser(description='Launch the multiprocess stable baselines server.')
-parser.add_argument('--port', metavar='N', default=50001,
-                    help='port to listen on')
-
-
-# Server for DatabasePreferenceLearner
 class MainHandler(web.RequestHandler):
     def post(self):
         request = self.request.body.decode()
@@ -136,7 +124,6 @@ class MainHandler(web.RequestHandler):
         if response.wanted:
             self.write(str(response))
 
-app = web.Application([(r"/", MainHandler)])
 trainer = None
             
 def run_server(port=50001):
@@ -153,8 +140,8 @@ def run_server(port=50001):
         return trainer.process(*args, **kwargs)
     serve(port=port)
 
+
 if __name__ == "__main__":
+    app = web.Application([(r"/", MainHandler)])
     args = parser.parse_args()
     run_server(port=args.port)
-
-

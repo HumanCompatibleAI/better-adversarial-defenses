@@ -9,6 +9,7 @@ from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.tune.schedulers import ASHAScheduler
+import gym_compete
 
 from frankenstein.remote_trainer import ExternalTrainer
 from gym_compete_rllib.gym_compete_to_rllib import create_env
@@ -227,6 +228,7 @@ def get_default_config():
     config["_env_fcn"] = create_env
     config['_policies'] = [None, "from_scratch", "pretrained"]
     config["_env"] = {'with_video': False,
+                      "SingleAgentToMultiAgent": False,
                       "env_name": "multicomp/YouShallNotPassHumans-v0"}
     config['framework'] = 'tfe'
 
@@ -475,6 +477,43 @@ def get_config_test_external():
     config['_train_steps'] = 10000
 
     config['_call']['name'] = "adversarial_external_sb"
+    config['_call']['num_samples'] = 1
+    return config
+
+def get_config_cartpole_external():
+    """Run with training via stable baselines."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 4096
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 1026
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 100
+    config['num_workers'] = 0
+
+    config['num_envs_per_worker'] = 1
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+
+    config['_policies'] = [None, "from_scratch_sb"]
+    config['run_uid'] = '_setme'
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "External"
+    config['_policy'] = "PPO"
+
+    config['_run_inline'] = True
+    config["batch_mode"] = "complete_episodes"
+    config["http_remote_port"] = "http://127.0.0.1:50001"
+
+    config['_train_steps'] = 100
+    config["_env"] = {'with_video': False,
+                      "SingleAgentToMultiAgent": True,
+                      "env_name": "InvertedPendulum-v2"}
+
+    config['_call']['name'] = "cartpole_external_sb"
     config['_call']['num_samples'] = 1
     return config
 

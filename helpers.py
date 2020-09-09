@@ -1,4 +1,5 @@
 import json
+import gym
 import numbers
 import os
 
@@ -7,6 +8,23 @@ import pandas as pd
 import ray.tune as tune
 from tqdm import tqdm
 
+
+def save_gym_space(space):
+    """Serialize gym.space."""
+    if isinstance(space, gym.spaces.Box):
+        low = space.low.flatten()[0]
+        high = space.high.flatten()[0]
+        return dict(type_='Box', low=low, high=high,
+                    shape=space.shape, dtype=space.dtype)
+    raise TypeError(f"Type {type(space)} is unsupported")
+    
+def load_gym_space(d):
+    """Load gym.space from save_gym_space result."""
+    assert isinstance(d, dict)
+    if d['type_'] == 'Box':
+        return gym.spaces.Box(low=d['low'], high=d['high'],
+                              shape=d['shape'], dtype=d['dtype'])
+    raise TypeError(f"Type {d['type_']} is unsupported")
 
 def dict_to_sacred(ex, d, iteration, prefix=''):
     """Log a dictionary to sacred."""
