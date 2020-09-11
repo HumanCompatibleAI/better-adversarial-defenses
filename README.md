@@ -25,14 +25,15 @@ Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
 
 ## How to train
 1. To test the setup with rllilb PPO trainer, run:
+
 `(tf2) $ python train.py --tune test`
 
 Log files will appear in `~/ray_results/run_type/run_name`. Use tensorboard in this folder. Checkpoints will be in `~/ray_results/iteration_name` where `iteration_name` can be obtained from `run_type/run_name` in variable `checkpoint_rllib` (see notebooks in the analysis folder). `run_type` is a string corresponding to the `test` argument in the command that you ran. See CONFIGS variable in `config.py`.
 
 2. To make a video:
-(on headless setups):
 
-`$ Xvfb -screen 0 1024x768x24&; export DISPLAY=:0`
+(on headless setups): `$ Xvfb -screen 0 1024x768x24&; export DISPLAY=:0`
+
 `(tf2) $ python make_video.py --checkpoint path/to/checkpoint/checkpoint-xxx --config your-config-at-training --display $DISPLAY`
 
 Options:
@@ -45,10 +46,13 @@ Options:
 
 4. To run training with stable baselines:
 Running Stable Baselines server:
+
 `(tf1) $ python frankenstein/stable_baselines_server.py`
 
 5. Training in Inverted Pendulum (single-agent):
+
 `(tf2) $ python train.py --tune external_cartpole`
+
 `(tf2) $ python make_video.py --checkpoint path/checkpoint-xxx --display $DISPLAY --config external_cartpole --steps 1`
 
 
@@ -81,7 +85,7 @@ Folders:
 Submodules:
 * `adversarial-policies` is the original project by <a href="https://www.gleave.me/">Adam Gleave</a>
 * `multiagent-competition` contains the environments used in the original project, as well as saved weights
-* `ray` is a copy of the `ray` repository with patches to make the project work
+* `ray` is a copy of the `ray` repository with <a href="https://github.com/HumanCompatibleAI/ray/compare/releases/0.8.6...HumanCompatibleAI:adv">patches</a> to make the project work
 
 
 ### Additional files (see folder `other`)
