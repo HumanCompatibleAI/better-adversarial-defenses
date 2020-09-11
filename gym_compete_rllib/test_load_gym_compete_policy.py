@@ -5,11 +5,13 @@ from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
 
 
 def load_one(env_name, agent_id):
+    """Load the policy for one agent."""
     nets = get_policy_value_nets(env_name, agent_id)
     assert isinstance(nets, dict), "Can't load %s %d" % (env_name, agent_id)
 
 
 def test_load():
+    """Test that we can load policies for all agents."""
     zoo_path = '../multiagent-competition/gym_compete/agent_zoo'
     envs = os.listdir(zoo_path)
     results = []

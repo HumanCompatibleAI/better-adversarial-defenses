@@ -1,17 +1,16 @@
 import datetime
-import uuid
-
 import gym
 import numpy as np
 import tensorflow as tf
-from ray.rllib.env.multi_agent_env import MultiAgentEnv
-from ray.rllib.models import ModelCatalog
-from ray.rllib.models.tf.tf_modelv2 import TFModelV2
-from ray.tune.registry import register_env
+import uuid
 from gym.wrappers import Monitor
+from ray.tune.registry import register_env
 
 from gym_compete_rllib.layers import UnconnectedVariableLayer
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
+from ray.rllib.env.multi_agent_env import MultiAgentEnv
+from ray.rllib.models import ModelCatalog
+from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 # scaler for reward output for players
 REWARD_SCALER = 1. / 100
@@ -143,6 +142,7 @@ class SingleAgentToMultiAgent(MultiAgentEnv):
     def render(self, *args, **kwargs):
         return self._env.render(*args, **kwargs)
 
+
 class GymCompeteToRLLibAdapter(MultiAgentEnv):
     """Takes gym_compete env and makes a multi-agent RLLib env."""
 
@@ -253,6 +253,7 @@ class GymCompetePretrainedModel(KerasModelModel):
         agent_id = args[3]['custom_model_config']['agent_id']
         load_weights = args[3]['custom_model_config']['load_weights']
         obs_space, act_space = args[0], args[1]
+
         def get_dim(x):
             """Get dimension of a gym space."""
             if isinstance(x, int):
@@ -262,6 +263,7 @@ class GymCompetePretrainedModel(KerasModelModel):
                 return x.shape[0]
             else:
                 raise TypeError(f"Unknown space {x} {type(x)}")
+
         obs_dim, act_dim = [get_dim(x) for x in [obs_space, act_space]]
         nets = get_policy_value_nets(env_name, agent_id, load_weights=load_weights, act_dim=act_dim, obs_dim=obs_dim)
         value_net_postproc_layer = nets['value'].layers[-1]

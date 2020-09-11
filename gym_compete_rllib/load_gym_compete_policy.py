@@ -1,7 +1,6 @@
-import pickle
-
 import gym
 import numpy as np
+import pickle
 import tensorflow as tf
 import tensorflow.keras as keras
 from matplotlib import pyplot as plt
@@ -85,12 +84,12 @@ def nets_to_weights(nets):
     mean_obs, std_obs, _ = nets['value'].layers[0].get_weights()
 
     keep_vars_estimated = {
-	'retfilter/count:0': 1,
-	'obsfilter/count:0': 1,
-	'retfilter/sum:0': mean_ret,
-	'retfilter/sumsq:0': std_ret ** 2 + mean_ret ** 2,
-	'obsfilter/sum:0': mean_obs,
-	'obsfilter/sumsq:0': std_obs ** 2 + mean_obs ** 2,
+        'retfilter/count:0': 1,
+        'obsfilter/count:0': 1,
+        'retfilter/sum:0': mean_ret,
+        'retfilter/sumsq:0': std_ret ** 2 + mean_ret ** 2,
+        'obsfilter/sum:0': mean_obs,
+        'obsfilter/sumsq:0': std_obs ** 2 + mean_obs ** 2,
     }
 
     for var in keep_vars:
