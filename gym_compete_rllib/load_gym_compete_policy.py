@@ -140,26 +140,30 @@ def nets_to_weight_array(nets, check_content_id=False):
     return vars_compressed
 
 
-def load_weights_from_vars(variables, value_net, policy_net, clip_obs=CLIP_OBS_DEFAULT):
+def load_weights_from_vars(variables, value_net, policy_net, clip_obs=CLIP_OBS_DEFAULT, load_weights=True):
     """Load weights from variables dict into keras networks."""
     layer_names = ['1', '2', 'final']
     # name in old vars, new model, layer offset
     networks_map = [('vff', value_net, 1), ('pol', policy_net, 2)]
 
-    for net_name, net, layer_offset in networks_map:
-        for layer, layer_name in enumerate(layer_names):
-            net.layers[layer_offset + layer].set_weights(
-                [variables[net_name + layer_name + '/' + p + ':0']
-                 for p in ['w', 'b']])
+    if load_weights == True:
+        for net_name, net, layer_offset in networks_map:
+            for layer, layer_name in enumerate(layer_names):
+                net.layers[layer_offset + layer].set_weights(
+                    [variables[net_name + layer_name + '/' + p + ':0']
+                     for p in ['w', 'b']])
+        policy_net.layers[-5].set_weights([variables['logstd:0']])
+    else:
+        print("Not setting NN weights")
 
-    # setting LOGstd value
-    policy_net.layers[-5].set_weights([variables['logstd:0']])
-    obs_preproc_weights = [*normalizer_mean_std(variables, 'obs'), np.array([clip_obs])]
-    value_postproc_weights = [np.array(x).reshape((1,)) for x in [*normalizer_mean_std(variables, 'ret')]]
+    if load_weights is True or load_weights == 'normalization_only':
+        # setting LOGstd value
+        obs_preproc_weights = [*normalizer_mean_std(variables, 'obs'), np.array([clip_obs])]
+        value_postproc_weights = [np.array(x).reshape((1,)) for x in [*normalizer_mean_std(variables, 'ret')]]
 
-    policy_net.layers[1].set_weights(obs_preproc_weights)
-    value_net.layers[0].set_weights(obs_preproc_weights)
-    value_net.layers[-1].set_weights(value_postproc_weights)
+        policy_net.layers[1].set_weights(obs_preproc_weights)
+        value_net.layers[0].set_weights(obs_preproc_weights)
+        value_net.layers[-1].set_weights(value_postproc_weights)
 
 
 def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables_spec=None, version=1,
@@ -226,24 +230,28 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
     # print("Weights delta", n_saved_weights - model_weights)
 
     if load_weights:
-        # increasing agent id (input 0-based)
-        if isinstance(agent_id, int):
-            agent_id += 1
+        try:
+            # increasing agent id (input 0-based)
+            if isinstance(agent_id, int):
+                agent_id += 1
 
-        # only keeping second part
-        env_name_2 = env_name.split('/')[1]
+            # only keeping second part
+            env_name_2 = env_name.split('/')[1]
 
-        # loading data
-        policy_unpickle = pickle.load(
-            open(pickle_path + env_name_2 + '/agent%s_parameters-v%d.pkl' % (str(agent_id), version), 'rb'))
+            # loading data
+            policy_unpickle = pickle.load(
+                open(pickle_path + env_name_2 + '/agent%s_parameters-v%d.pkl' % (str(agent_id), version), 'rb'))
 
-        # obtaining list of variables
-        variables = get_variables(variables_spec=variables_spec, policy_unpickle=policy_unpickle)
-        results['variables'] = variables
-        results['weights_unpickle'] = policy_unpickle
+            # obtaining list of variables
+            variables = get_variables(variables_spec=variables_spec, policy_unpickle=policy_unpickle)
+            results['variables'] = variables
+            results['weights_unpickle'] = policy_unpickle
 
-        # loading weights
-        load_weights_from_vars(variables, results['value'], results['policy'], clip_obs)
+            # loading weights
+            load_weights_from_vars(variables, results['value'], results['policy'], clip_obs, load_weights=load_weights)
+        except Exception as e:
+            print("Weight load failed", agent_id)
+            print(e)
 
     return results
 

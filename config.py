@@ -90,7 +90,7 @@ def get_agent_config(agent_id, which, obs_space, act_space, config):
                 "env_name": config['_env']['env_name'],
                 "model_config": {},
                 "name": "model_%s" % (agent_id - 1),
-                "load_weights": False,
+                "load_weights": 'normalization_only',
             },
         },
 
@@ -717,12 +717,12 @@ def get_policies_all(config, n_policies, obs_space, act_space, policy_template="
     return policies
 
 
-def get_policies_pbt(config, n_policies, obs_space, act_space, policy_template="player_%d%s"):
+def get_policies_pbt(config, n_policies, obs_space, act_space, policy_template="player_%d%s", from_scratch_name="from_scratch"):
     """Get a policy dictionary, population-based training."""
     n_adversaries = config['_n_adversaries']
     which_arr = {1:
                      {"pretrained": ["_pretrained"],
-                      "from_scratch": ["_from_scratch_%03d" % i for i in range(1, n_adversaries + 1)]},
+                      from_scratch_name: ["_from_scratch_%03d" % i for i in range(1, n_adversaries + 1)]},
                  2: {"pretrained": ["_pretrained"]}
                  }
 
@@ -840,6 +840,52 @@ def get_config_bursts_normal_pbt():
     config['_get_policies'] = get_policies_pbt
     return config
 
+def get_config_bursts_normal_pbt_sb():
+    """One trial with bursts and PBT."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 100
+
+    config['run_uid'] = '_setme'
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "External"
+    config['_policy'] = "PPO"
+
+    config["batch_mode"] = "complete_episodes"
+    config["http_remote_port"] = "http://127.0.0.1:50001"
+
+    config['num_env_per_worker'] = 10
+    config['num_workers'] = 3
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_update_config'] = bursts_config_increase
+    config['_train_steps'] = 10000
+    config['_eval_steps'] = 1500
+    config['_burst_exponent'] = tune.loguniform(1, 2.2, 2)
+    config['_p_normal'] = tune.uniform(0.1, 0.9)
+    config['_n_adversaries'] = 5#tune_int(tune.uniform(1, 10))
+    config['entropy_coeff'] = tune.uniform(0, 0.02)
+
+    steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
+
+    config['_call']['stop'] = {'timesteps_total': steps}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_pbt_sb"
+    config['_call']['num_samples'] = 100
+    # ['humanoid_blocker', 'humanoid'],
+
+    # config['_run_inline'] = True
+    config['_select_policy'] = partial(select_policy_opp_normal_and_adv_pbt, from_scratch_name="from_scratch_sb")
+    config['_get_policies'] = get_policies_pbt
+    return config
+
 
 def get_trainer(config):
     """Get trainer from config."""
@@ -863,6 +909,7 @@ CONFIGS = {'test': get_config_test(),
            'bursts_exp': get_config_bursts_exp(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
            'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
+           'bursts_exp_withnormal_pbt_sb': get_config_bursts_normal_pbt_sb(),
            'external': get_config_test_external(),
            'external_cartpole': get_config_cartpole_external(),
            'sample_speed': get_config_sample_speed(),
