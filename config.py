@@ -456,7 +456,7 @@ def get_config_test_external():
     config['sgd_minibatch_size'] = 4096
     config['num_sgd_iter'] = 4
     config['rollout_fragment_length'] = 100
-    config['num_workers'] = 3
+    config['num_workers'] = 9
 
     config['num_envs_per_worker'] = 10
 
@@ -477,7 +477,7 @@ def get_config_test_external():
     config['_train_steps'] = 10000
 
     config['_call']['name'] = "adversarial_external_sb"
-    config['_call']['num_samples'] = 1
+    config['_call']['num_samples'] = 3
     return config
 
 def get_config_cartpole_external():
@@ -630,7 +630,7 @@ def get_config_victim_recover():
     # try changing learning rate
     config = get_default_config()
 
-    config['_checkpoint_restore'] = './checkpoint-adv-67'
+    config['_checkpoint_restore'] = './results/checkpoint-adv-67'
 
     config['train_batch_size'] = 42879
     config['lr'] = 0.000755454
@@ -649,6 +649,43 @@ def get_config_victim_recover():
     config['_call']['name'] = "adversarial_tune_recover"
     config['_call']['num_samples'] = 4
     return config
+
+def get_config_victim_recover_sb():
+    """Victim recovers from a pre-trained adversary."""
+    # try changing learning rate
+    config = get_default_config()
+
+    config['_checkpoint_restore'] = './results/checkpoint-adv-external-3273'
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_2']
+    config['_train_steps'] = 9999999999
+
+    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_recover_sb"
+    config['_call']['num_samples'] = 4
+ 
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 100
+
+    config['run_uid'] = '_setme'
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "External"
+    config['_policy'] = "PPO"
+
+    config["batch_mode"] = "complete_episodes"
+    config["http_remote_port"] = "http://127.0.0.1:50001"
+
+    config['num_env_per_worker'] = 10
+    config['num_workers'] = 3
+    return config
+
 
 
 def get_config_bursts():
@@ -901,6 +938,7 @@ CONFIGS = {'test': get_config_test(),
            'burst': get_config_bursts(),
            'test_appo': get_config_test_appo(),
            'victim_recover': get_config_victim_recover(),
+           'victim_recover_sb': get_config_victim_recover_sb(),
            'fine2': get_config_fine2(),
            'best': get_config_best(),
            'es': get_config_es(),
