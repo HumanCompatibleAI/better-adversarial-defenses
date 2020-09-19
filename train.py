@@ -80,7 +80,7 @@ def train_iteration_process(pickle_path):
     # doing it by copying weights only
     # so that iteration number is 0 instead of the saved one
     if '_checkpoint_restore' in config and iteration == 0:
-        trainer_1 = get_trainer()
+        trainer_1 = get_trainer(config)
         trainer_1.restore(config['_checkpoint_restore'])
         trainer.set_weights(deepcopy(trainer_1.get_weights()))
 

@@ -659,10 +659,10 @@ def get_config_victim_recover_sb():
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_2']
+    config['_policies'] = [None, "from_scratch_sb", "pretrained"]
     config['_train_steps'] = 9999999999
 
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
-    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
     config['_call']['name'] = "adversarial_tune_recover_sb"
     config['_call']['num_samples'] = 4
@@ -682,8 +682,9 @@ def get_config_victim_recover_sb():
     config["batch_mode"] = "complete_episodes"
     config["http_remote_port"] = "http://127.0.0.1:50001"
 
-    config['num_env_per_worker'] = 10
+    config['num_envs_per_worker'] = 10
     config['num_workers'] = 3
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
 
 
