@@ -24,9 +24,10 @@ from helpers import dict_to_sacred, unlink_ignore_error
 parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
 parser.add_argument('--from_pickled_config', type=str, help='Trial to run (if None, run tune)', default=None,
                     required=False)
-parser.add_argument('--tune', type=str, help='Run tune', default=None, required=False)
+parser.add_argument('--tune', type=str, help='Run tune', default=None, required=False, choices=CONFIGS.keys())
 parser.add_argument('--tmp_dir', type=str, help='Temporary directory', default='/tmp', required=False)
 parser.add_argument('--config_override', type=str, help='Config override json', default=None, required=False)
+parser.add_argument('--verbose', action='store_true', required=False)
 
 
 def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
@@ -83,6 +84,13 @@ def train_iteration_process(pickle_path):
         trainer_1 = get_trainer(config)
         trainer_1.restore(config['_checkpoint_restore'])
         trainer.set_weights(deepcopy(trainer_1.get_weights()))
+
+    # restoring weights for specific policies
+    if '_checkpoint_restore_policy' in config and iteration == 0:
+        for policy, path in config['_checkpoint_restore_policy'].items():
+            weights = pickle.load(open(path, 'rb'))
+            trainer.get_policy(policy).set_weights(weights)
+            print(f"Set weights for policy {policy} from {path}")
 
     # doing one train interation and saving
     results = trainer.train()
@@ -189,7 +197,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     return ex.run()
 
 
-def run_tune(config_name=None, config_override=None, tmp_dir=None):
+def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False):
     """Call tune."""
     assert config_name in CONFIGS, "Wrong config %s" % str(list(CONFIGS.keys()))
     config = CONFIGS[config_name]
@@ -201,12 +209,17 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None):
     config['_redis_address'] = cluster_info['redis_address']
     config['_base_dir'] = os.path.dirname(os.path.realpath(__file__))
     config['_tmp_dir'] = tmp_dir
+    config['_verbose'] = verbose
 
     # changing config entries from command line
     if config_override:
         config_override = json.loads(config_override)
         for k, v in config_override.items():
             config[k] = v
+
+    if verbose:
+        print("Template config")
+        print(config)
 
     # running tune
     tune.run(
@@ -228,7 +241,8 @@ if __name__ == '__main__':
 
     # this option runs tune trials
     elif args.tune:
-        run_tune(config_name=args.tune, config_override=args.config_override, tmp_dir=args.tmp_dir)
+        run_tune(config_name=args.tune, config_override=args.config_override,
+                 tmp_dir=args.tmp_dir, verbose=args.verbose)
     else:
         parser.print_help()
 

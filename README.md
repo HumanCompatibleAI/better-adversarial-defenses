@@ -56,6 +56,15 @@ Running Stable Baselines server:
 `(tf2) $ python make_video.py --checkpoint path/checkpoint-xxx --display $DISPLAY --config external_cartpole --steps 1`
 
 
+### Tips and tricks
+* If you want to quickly iterate with your config (use smaller batch size and no remote workers), pass an option to the trainer:
+`python train.py ... ... ... --config_override='{"train_batch_size": 1000, "sgd_minibatch_size": 1000, "num_workers": 0}'`
+
+* If you want to output additional information, add the following option:
+`python train.py ... ... ... --verbose`
+
+* stable baselines server and the `train.py` scripts should be launched from the same folder, otherwise the temporary files will not be propagated
+
 ## Design choices
 1. We use ray because of its multi-agent support, and thus we have to use TensorFlow 2.0
 2. We use stable baselines for training because we were unable to replicate results with rllib, even with an independent search for hyperparameters.

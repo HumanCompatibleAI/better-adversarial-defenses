@@ -14,6 +14,7 @@ import gym_compete
 from frankenstein.remote_trainer import ExternalTrainer
 from gym_compete_rllib.gym_compete_to_rllib import create_env
 from helpers import sample_int, tune_int
+from ray.tune.logger import pretty_print
 
 
 def build_trainer_config(config):
@@ -60,7 +61,9 @@ def build_trainer_config(config):
         if k.startswith('_'): continue
         rl_config[k] = v
 
-    # print("Config:", pretty_print(rl_config))
+    if config['_verbose']:
+        print("Config:")
+        print(pretty_print(rl_config))
 
     return rl_config
 
@@ -754,6 +757,38 @@ def get_policies_all(config, n_policies, obs_space, act_space, policy_template="
                 }
     return policies
 
+def get_policies_withnormal_sb(config, n_policies, obs_space, act_space, policy_template="player_%d%s"):
+    """Get a policy dictionary, both pretrained normal and adversarial opponents."""
+    which_arr = {1:
+                     {"from_scratch_sb": "_pretrained_adversary_sb",
+                      "pretrained": "_pretrained_sb",
+                     },
+                 2:
+                     {"pretrained": "_pretrained_sb"}
+                }
+    policies = {policy_template % (i, which_v): get_agent_config(agent_id=i, which=which_k, config=config,
+                                                                 obs_space=obs_space, act_space=act_space)
+                for i in range(1, 1 + n_policies)
+                for which_k, which_v in which_arr[i].items()
+                }
+    if config['_verbose']:
+        print("Policies")
+        print(policies.keys())
+    return policies
+
+def select_policy_opp_normal_and_adv_sb(agent_id, config, do_print=False):
+    """Select policy at execution, normal-adversarial opponents."""
+    p_normal = config['_p_normal']
+    if agent_id == "player_1":
+        out = np.random.choice(["player_1_pretrained_sb", "player_1_pretrained_adversary_sb"],
+                               p=[p_normal, 1 - p_normal])
+        if do_print or config['_verbose']:
+            print('Chosen', out)
+        return out
+    elif agent_id == "player_2":
+        # pretrained victim
+        return "player_2_pretrained_sb"
+
 
 def get_policies_pbt(config, n_policies, obs_space, act_space, policy_template="player_%d%s", from_scratch_name="from_scratch"):
     """Get a policy dictionary, population-based training."""
@@ -804,6 +839,43 @@ def select_policy_opp_normal_and_adv(agent_id, config, do_print=False):
     elif agent_id == "player_2":
         # pretrained victim
         return "player_2_pretrained"
+
+def get_config_victim_recover_withnormal_sb():
+    config = get_default_config()
+    config['_checkpoint_restore_policy'] = {'player_1_pretrained_adversary_sb': './results/checkpoint-adv-external-3273-player_1.pkl'}
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_2_pretrained_sb']
+    config['_train_steps'] = 9999999999
+
+    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config["batch_mode"] = "complete_episodes"
+    config['_call']['name'] = "adversarial_tune_recover_withnormal_sb"
+    config['_call']['num_samples'] = 1
+ 
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 100
+
+    config['run_uid'] = '_setme'
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "External"
+    config['_policy'] = "PPO"
+
+    config["batch_mode"] = "complete_episodes"
+    config["http_remote_port"] = "http://127.0.0.1:50001"
+
+    config['num_envs_per_worker'] = 10
+    config['num_workers'] = 3
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config['_select_policy'] = select_policy_opp_normal_and_adv_sb
+    config['_get_policies'] = get_policies_withnormal_sb
+    config['_run_inline'] = True
+    config['_p_normal'] = 0.5
+    return config
 
 
 def get_config_bursts_normal():
@@ -949,6 +1021,7 @@ CONFIGS = {'test': get_config_test(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
            'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
            'bursts_exp_withnormal_pbt_sb': get_config_bursts_normal_pbt_sb(),
+           'victim_recover_withnormal_sb': get_config_victim_recover_withnormal_sb(),
            'external': get_config_test_external(),
            'external_cartpole': get_config_cartpole_external(),
            'sample_speed': get_config_sample_speed(),
