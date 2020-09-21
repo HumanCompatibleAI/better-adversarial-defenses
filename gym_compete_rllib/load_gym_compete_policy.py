@@ -153,6 +153,7 @@ def load_weights_from_vars(variables, value_net, policy_net, clip_obs=CLIP_OBS_D
                     [variables[net_name + layer_name + '/' + p + ':0']
                      for p in ['w', 'b']])
         policy_net.layers[-5].set_weights([variables['logstd:0']])
+        print("Setting NN weights")
     else:
         print("Not setting NN weights")
 
@@ -164,6 +165,7 @@ def load_weights_from_vars(variables, value_net, policy_net, clip_obs=CLIP_OBS_D
         policy_net.layers[1].set_weights(obs_preproc_weights)
         value_net.layers[0].set_weights(obs_preproc_weights)
         value_net.layers[-1].set_weights(value_postproc_weights)
+        print("Loading normalization")
 
 
 def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables_spec=None, version=1,
