@@ -7,7 +7,6 @@ In this repository:
 3. Victim is trained against multiple adversaries as well as the normal opponent ('population-based training')
 4. Stable Baselines are connected to rllib to train by sampling with rllib and optimizing with Stable Baslines
 
-CHAI 2020 Summer Intern Project by <a href="http://sergeivolodin.github.io/">Sergei Volodin</a>
 
 
 ## Setup
@@ -58,7 +57,7 @@ Running Stable Baselines server:
 
 ### Tips and tricks
 * If you want to quickly iterate with your config (use smaller batch size and no remote workers), pass an option to the trainer:
-`python train.py ... ... ... --config_override='{"train_batch_size": 1000, "sgd_minibatch_size": 1000, "num_workers": 0}'`
+`python train.py ... ... ... --config_override='{"train_batch_size": 1000, "sgd_minibatch_size": 1000, "num_workers": 0, "_run_inline": 1}'`
 
 * If you want to output additional information, add the following option:
 `python train.py ... ... ... --verbose`

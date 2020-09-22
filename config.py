@@ -627,6 +627,45 @@ def get_config_test_bursts():
     config['_burst_size'] = 2
     return config
 
+def get_config_bursts_exp_sb():
+    """Run with bursts (small test run)."""
+    # try changing learning rate
+    config = get_default_config()
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_update_config'] = bursts_config_increase
+    config['_train_steps'] = 5000
+    config['_eval_steps'] = 1500
+    config['_burst_exponent'] = tune.loguniform(1.1, 2, 2)
+    config['_policies'] = [None, "from_scratch_sb", "pretrained"]
+
+
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 100
+    steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
+
+    config['_call']['stop'] = {'timesteps_total': steps}
+
+    config['run_uid'] = '_setme'
+    config['num_gpus'] = 0
+
+    config['_trainer'] = "External"
+    config['_policy'] = "PPO"
+
+    config["batch_mode"] = "complete_episodes"
+    config["http_remote_port"] = "http://127.0.0.1:50001"
+
+    config['num_envs_per_worker'] = 10
+    config['num_workers'] = 3
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config['_call']['num_samples'] = 10
+    config['_call']['name'] = "adversarial_tune_bursts_exp_sb"
+    return config
+
 
 def get_config_victim_recover():
     """Victim recovers from a pre-trained adversary."""
@@ -851,7 +890,7 @@ def get_config_victim_recover_withnormal_sb():
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
     config["batch_mode"] = "complete_episodes"
     config['_call']['name'] = "adversarial_tune_recover_withnormal_sb"
-    config['_call']['num_samples'] = 1
+    config['_call']['num_samples'] = 5
  
     config['train_batch_size'] = 16384
     config['lr'] = 3e-4
@@ -873,7 +912,7 @@ def get_config_victim_recover_withnormal_sb():
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config['_select_policy'] = select_policy_opp_normal_and_adv_sb
     config['_get_policies'] = get_policies_withnormal_sb
-    config['_run_inline'] = True
+   # config['_run_inline'] = True
     config['_p_normal'] = 0.5
     return config
 
@@ -1018,6 +1057,7 @@ CONFIGS = {'test': get_config_test(),
            'linear': get_config_linear(),
            'sizes': get_config_sizes(),
            'bursts_exp': get_config_bursts_exp(),
+           'bursts_exp_sb': get_config_bursts_exp_sb(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
            'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
            'bursts_exp_withnormal_pbt_sb': get_config_bursts_normal_pbt_sb(),
