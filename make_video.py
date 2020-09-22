@@ -46,7 +46,7 @@ def make_video(args):
     config['num_sgd_iter'] = 1
     config['rollout_fragment_length'] = 200
     config['lr'] = 0
-
+    config['_verbose'] = False
     config['_env']['with_video'] = not args.no_video
 
     config['num_gpus'] = 0
@@ -74,27 +74,29 @@ def make_video(args):
         trainer = TRAINERS[config['_trainer']](config=rl_config)
         trainer.restore(args.checkpoint)
 
-    stats = []
+    stats_all = {}
 
     # doing rollouts
     for _ in tqdm(range(config['_train_steps'])):
-        stats = trainer.train()['hist_stats']['policy_player_1_reward']
-        print(stats)
+        stats_all = {x: y for x, y in trainer.train()['hist_stats'].items() if x.endswith('reward')}
+        
+    print(stats_all)
 
     # processing win/lose rates
     results = {}
 
-    stats = np.array(stats)
-    trials = len(stats)
-    wins = 100. * np.sum(stats > 0) / trials
-    losses = 100. * np.sum(stats < 0) / trials
-    ties = 100. * np.sum(stats == 0) / trials
-    print(f"Total trials {trials} win rate {wins}%% loss rate {losses}%% tie rate {ties}%%" % ())
+    for player, stats in stats_all.items():
+        stats = np.array(stats)
+        trials = len(stats)
+        wins = 100. * np.sum(stats > 0) / trials
+        losses = 100. * np.sum(stats < 0) / trials
+        ties = 100. * np.sum(stats == 0) / trials
+        print(f"Player {player} total trials {trials} win rate {wins}%% loss rate {losses}%% tie rate {ties}%%" % ())
 
-    results['trials'] = trials
-    results['wins'] = wins
-    results['losses'] = losses
-    results['ties'] = ties
+        results['trials_' + player] = trials
+        results['wins_' + player] = wins
+        results['losses_' + player] = losses
+        results['ties_' + player] = ties
 
     # adding videos as results
     if not args.no_video:
