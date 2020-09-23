@@ -26,7 +26,7 @@ from ray.rllib.policy.policy import PolicyID
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, MultiAgentBatch
 
 from gym_compete_rllib.load_gym_compete_policy import nets_to_weights, load_weights_from_vars
-from helpers import filter_dict_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
+from helpers import filter_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
 
 
 def rllib_samples_to_dict(samples):
@@ -46,8 +46,24 @@ def train_external(policies, samples, config):
     if config['lr'] == 0:
         return {}
 
+    samples_dict = rllib_samples_to_dict(samples)
+
+    # only training policies with data
+    to_train = set(policies)
+    to_train = to_train.intersection(samples_dict.keys())
+
+    config_orig = deepcopy(config)
+    config = filter_pickleable(config_orig)
+
+    # config to send
+    p = dict_get_any_value(config_orig['multiagent']['policies'])
+    print(config_orig['multiagent']['policies'])
+    obs_space, act_space = p[1], p[2]
+    config['_observation_space'] = save_gym_space(obs_space)
+    config['_action_space'] = save_gym_space(act_space)
+
     # requesting to train all policies
-    for policy in policies:
+    for policy in to_train:
         # only training the requested policies
         if policy not in config['multiagent']['policies_to_train']:
             continue
@@ -65,20 +81,9 @@ def train_external(policies, samples, config):
         run_policy_step_uid = f"{run_uid}_policy_{policy}_step{iteration}"
 
         # data to pickle
-        data_policy = {}
-
-        # config to send
-        config_orig = deepcopy(config)
-        config = filter_dict_pickleable(config)
-        p = dict_get_any_value(config_orig['multiagent']['policies'])
-        obs_space, act_space = p[1], p[2]
-        config['_observation_space'] = save_gym_space(obs_space)
-        config['_action_space'] = save_gym_space(act_space)
-
-        # data: rollouts and weights
-        data_policy['rollouts'] = rllib_samples_to_dict(samples)[policy]
-        data_policy['weights'] = nets_to_weights(policies[policy].model._nets)
-        data_policy['config'] = config
+        data_policy = {'rollouts': samples_dict[policy],
+                       'weights': nets_to_weights(policies[policy].model._nets),
+                       'config': config}
 
         # paths for data/answer
         data_path = run_policy_step_uid + '.pkl'
@@ -93,10 +98,10 @@ def train_external(policies, samples, config):
         client = HTTPClient(config['http_remote_port'])
         result = client.process(run_policy_uid, uid=0, data_path=data_path, answer_path=answer_path).data.result
 
-        assert result == True, str(result)
+        assert result is True, str(result)
 
     # obtaining policies
-    for policy in policies:
+    for policy in to_train:
         answer_path = answer_paths[policy]
         data_path = data_paths[policy]
 
