@@ -16,7 +16,7 @@ def save_gym_space(space):
         high = space.high.flatten()[0]
         return dict(type_='Box', low=low, high=high,
                     shape=space.shape, dtype=space.dtype)
-    raise TypeError(f"Type {type(space)} is unsupported")
+    raise TypeError(f"Type {type(space)} {space} is unsupported")
     
 def load_gym_space(d):
     """Load gym.space from save_gym_space result."""
@@ -49,22 +49,29 @@ def sample_int(obj):
     """Convert tune distribution to integer, backward-compatible name."""
     return tune_int(obj)
 
+class Unpickleable(object):
+    """Represent an unpickleable object"""
+    def __init__(self, obj):
+        self.obj_type = str(type(obj))
+        self.obj_str = str(obj)
+    def __repr__(self):
+        return f"<Unpickleable({self.obj_str}, type={self.obj_type}>"
 
-def filter_dict_pickleable(d, do_print=False):
-    """Keep only simple types in a dict, recurse."""
-    result = {}
-    allowed_types = [int, float, np.ndarray, list, dict, set, bool, str, type(None)]
-    deleted_info = '_deleted'
-    for x, y in d.items():
-        if isinstance(y, dict):
-            result[x] = filter_dict_pickleable(y, do_print=do_print)
-        elif type(y) in allowed_types:
-            result[x] = y
-        else:
-            if do_print:
-                print('deleting', x, y)
-            result[x] = deleted_info
-    return result
+def filter_pickleable(d):
+    """Recursively keep only pickleable objects."""
+    basic_types = {int, float, bool, str, np.ndarray, type(None)}
+    if type(d) in basic_types:
+        return d
+    elif isinstance(d, tuple):
+        return tuple(filter_pickleable(z) for z in d)
+    elif isinstance(d, list):
+        return [filter_pickleable(z) for z in d]
+    elif isinstance(d, set):
+        return {filter_pickleable(z) for z in d}
+    elif isinstance(d, dict):
+        return {filter_pickleable(x): filter_pickleable(y) for x, y in d.items()}
+    else:
+        return Unpickleable(d)
 
 
 def dict_get_any_value(d):
