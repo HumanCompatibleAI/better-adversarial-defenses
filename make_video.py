@@ -51,10 +51,10 @@ def make_video(args):
 
     config['num_gpus'] = 0
 
-    num_workers = 0  # 0 if not args.no_video else 5
+    num_workers = 0# if not args.no_video else 5
 
     config['num_workers'] = num_workers
-    config['num_envs_per_worker'] = 1
+    config['num_envs_per_worker'] = 1 if not args.no_video else 8
 
     # which opponent to load?
     if args.load_normal:
@@ -93,6 +93,7 @@ def make_video(args):
         ties = 100. * np.sum(stats == 0) / trials
         print(f"Player {player} total trials {trials} win rate {wins}%% loss rate {losses}%% tie rate {ties}%%" % ())
 
+        results['players'] = list(stats_all.keys())
         results['trials_' + player] = trials
         results['wins_' + player] = wins
         results['losses_' + player] = losses
