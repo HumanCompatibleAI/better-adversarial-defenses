@@ -1,4 +1,5 @@
 import gym
+import os
 import numpy as np
 import pickle
 import tensorflow as tf
@@ -7,9 +8,10 @@ from matplotlib import pyplot as plt
 
 from gym_compete_rllib.layers import DiagonalNormalSamplingLayer, ValuePostprocessingLayer
 from gym_compete_rllib.layers import ObservationPreprocessingLayer, UnconnectedVariableLayer
+import gym_compete
 
 # path with .pkl agent files
-pickle_path = '/scratch/sergei/better-adversarial-defenses/multiagent-competition/gym_compete/agent_zoo/'
+pickle_path = os.path.join(os.path.dirname(gym_compete.__file__), 'agent_zoo')
 
 # hidden dimension of mlp
 hid_dim = 64
@@ -242,7 +244,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
 
             # loading data
             policy_unpickle = pickle.load(
-                open(pickle_path + env_name_2 + '/agent%s_parameters-v%d.pkl' % (str(agent_id), version), 'rb'))
+                open(os.path.join(pickle_path, env_name_2, 'agent%s_parameters-v%d.pkl' % (str(agent_id), version)), 'rb'))
 
             # obtaining list of variables
             variables = get_variables(variables_spec=variables_spec, policy_unpickle=policy_unpickle)
