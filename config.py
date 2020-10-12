@@ -949,6 +949,36 @@ def get_config_bursts_normal_pbt():
     config['_get_policies'] = get_policies_pbt
     return config
 
+def get_config_bursts_normal_1adv_sb():
+    """One trial with bursts and PBT, 1 adversary."""
+    # try changing learning rate
+    config = get_default_config()
+    config = update_config_external_template(config)
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = []
+    config['_update_withpolicies'] = bursts_config_increase
+    config['_train_steps'] = 10000
+    config['_eval_steps'] = 1500
+    config['_burst_exponent'] = tune.loguniform(1, 2.2, 2)
+    config['_p_normal'] = 0.5#tune.uniform(0.1, 0.9)
+    config['_n_adversaries'] = 1#tune_int(tune.uniform(1, 10))
+    config['entropy_coeff'] = 0#tune.uniform(0, 0.02)
+
+    steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
+
+    config['_call']['stop'] = {'timesteps_total': steps}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_1adv_sb"
+    config['_call']['num_samples'] = 50
+    # ['humanoid_blocker', 'humanoid'],
+
+    # config['_run_inline'] = True
+    config['_select_policy'] = select_policy_opp_normal_and_adv_pbt
+    config['_get_policies'] = partial(get_policies_pbt, from_scratch_name="from_scratch_sb")
+    config['_do_not_train_policies'] = ['player_1_pretrained']
+    return config
+
 def get_config_bursts_normal_pbt_sb():
     """One trial with bursts and PBT."""
     # try changing learning rate
@@ -1005,6 +1035,7 @@ CONFIGS = {'test': get_config_test(),
            'bursts_exp_withnormal': get_config_bursts_normal(),
            'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
            'bursts_exp_withnormal_pbt_sb': get_config_bursts_normal_pbt_sb(),
+           'bursts_exp_withnormal_1adv_sb': get_config_bursts_normal_1adv_sb(),
            'victim_recover_withnormal_sb': get_config_victim_recover_withnormal_sb(),
            'external': get_config_test_external(),
            'external_cartpole': get_config_cartpole_external(),
