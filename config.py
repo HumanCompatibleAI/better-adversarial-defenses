@@ -963,7 +963,7 @@ def get_config_bursts_normal_1adv_sb():
     config['_burst_exponent'] = tune.loguniform(1, 2.2, 2)
     config['_p_normal'] = 0.5#tune.uniform(0.1, 0.9)
     config['_n_adversaries'] = 1#tune_int(tune.uniform(1, 10))
-    config['entropy_coeff'] = 0#tune.uniform(0, 0.02)
+    #config['entropy_coeff'] = tune.uniform(0, 0.02)
 
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
 
