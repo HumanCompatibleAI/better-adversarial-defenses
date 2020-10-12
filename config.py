@@ -28,6 +28,12 @@ def build_trainer_config(config):
     policies = config['_get_policies'](config=config, n_policies=n_policies, obs_space=obs_space, act_space=act_space)
     select_policy = config['_select_policy']
 
+    config = deepcopy(config)
+    config['_all_policies'] = sorted(policies.keys())
+
+    if config['_update_withpolicies']:
+        config = config['_update_withpolicies'](config, iteration=config['_iteration'])
+
     config1 = deepcopy(config)
     config1['multiagent'] = {}
     config1['multiagent']['policies'] = policies
@@ -163,9 +169,7 @@ def bursts_config_increase(config, iteration):
     if train_time + evaluation_time < iteration:
         print(f"Iteration {iteration} too high")
 
-    train_policies = config_new['_train_policies']
     info = {}
-
     # pretraining stage
     if iteration < train_time:
         bs_float, bs = 1.0, 1
@@ -179,27 +183,33 @@ def bursts_config_increase(config, iteration):
         delta = iteration - passed
         first_stage = delta < bs
 
-        train_policies = ['player_1'] if first_stage else ['player_2']
+        currently_training = 'player_1' if first_stage else 'player_2'
         info['type'] = 'train'
         info['bs'] = bs
         info['bs_float'] = bs_float
         info['passed'] = passed
         info['delta'] = delta
     else:
-        train_policies = ['player_1']
+        currently_training = 'player_1'
         info['type'] = 'eval'
 
-    assert len(train_policies) == 1
-    train_p = train_policies[0]
+    train_policies = []
 
-    if '_n_adversaries' in config:
-        if train_p == "player_1":
-            train_policies = ["player_1_from_scratch_%03d" % (i + 1) for i in range(config['_n_adversaries'])]
-        elif train_p == "player_2":
-            train_policies = ["player_2_pretrained"]
+    if '_all_policies' in config:
+        all_policies = config['_all_policies']
+    else:
+        all_policies = ['player_1', 'player_2']
+
+    for p in all_policies:
+        if not p.startswith(currently_training):
+            continue
+        if p in config['_do_not_train_policies']:
+            continue
+        train_policies.append(p)
 
     config_new['_train_policies'] = train_policies
     config_new['_burst_info'] = info
+
     return config_new
 
 
@@ -244,6 +254,7 @@ def get_default_config():
     config['_train_steps'] = 99999999
     config['_update_config'] = None
     config['_run_inline'] = False
+    config['_postprocess'] = None
 
     config['num_envs_per_worker'] = 4
     config['_log_error'] = True
@@ -257,7 +268,39 @@ def get_default_config():
 
     config['_select_policy'] = select_policy_default
     config['_get_policies'] = get_policies_default
+    config['_do_not_train_policies'] = []
 
+    return config
+
+def update_config_external_template(config):
+    """Set trainer to external."""
+
+    # best parameters from the paper
+    config['train_batch_size'] = 16384
+    config['lr'] = 3e-4
+    config['sgd_minibatch_size'] = 4096
+    config['num_sgd_iter'] = 4
+    config['rollout_fragment_length'] = 100
+
+    # run ID to communicate to the http trainer
+    config['run_uid'] = '_setme'
+
+    # stable baselines accepts full episodes
+    config["batch_mode"] = "complete_episodes"
+
+    # stable baselines server address
+    config["http_remote_port"] = "http://127.0.0.1:50001"
+
+    # no gpus, stable baselines might use them
+    config['num_gpus'] = 0
+
+    # set trainer class
+    config['_trainer'] = "External"
+    config['_policy'] = "PPO"
+
+    # tuned
+    config['num_envs_per_worker'] = 10
+    config['num_workers'] = 3
     return config
 
 
@@ -453,40 +496,22 @@ def get_config_test_external():
     """Run with training via stable baselines."""
     # try changing learning rate
     config = get_default_config()
-
-    config['train_batch_size'] = 16384
-    config['lr'] = 3e-4
-    config['sgd_minibatch_size'] = 4096
-    config['num_sgd_iter'] = 4
-    config['rollout_fragment_length'] = 100
-    config['num_workers'] = 9
-
-    config['num_envs_per_worker'] = 10
+    config = update_config_external_template(config)
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
-
     config['_policies'] = [None, "from_scratch_sb", "pretrained"]
-    config['run_uid'] = '_setme'
-    config['num_gpus'] = 0
-
-    config['_trainer'] = "External"
-    config['_policy'] = "PPO"
-
-    # config['_run_inline'] = True
-    config["batch_mode"] = "complete_episodes"
-    config["http_remote_port"] = "http://127.0.0.1:50001"
-
     config['_train_steps'] = 10000
-
     config['_call']['name'] = "adversarial_external_sb"
     config['_call']['num_samples'] = 3
+    config['num_workers'] = 0
     return config
 
 def get_config_cartpole_external():
     """Run with training via stable baselines."""
     # try changing learning rate
     config = get_default_config()
+    config = update_config_external_template(config)
 
     config['train_batch_size'] = 4096
     config['lr'] = 3e-4
@@ -494,23 +519,11 @@ def get_config_cartpole_external():
     config['num_sgd_iter'] = 4
     config['rollout_fragment_length'] = 100
     config['num_workers'] = 4
-
     config['num_envs_per_worker'] = 8
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
-
     config['_policies'] = [None, "from_scratch_sb"]
-    config['run_uid'] = '_setme'
-    config['num_gpus'] = 0
-
-    config['_trainer'] = "External"
-    config['_policy'] = "PPO"
-
-    #config['_run_inline'] = True
-    config["batch_mode"] = "complete_episodes"
-    config["http_remote_port"] = "http://127.0.0.1:50001"
-
     config['_train_steps'] = 100
     config["_env"] = {'with_video': False,
                       "SingleAgentToMultiAgent": True,
@@ -631,6 +644,7 @@ def get_config_bursts_exp_sb():
     """Run with bursts (small test run)."""
     # try changing learning rate
     config = get_default_config()
+    config = update_config_external_template(config)
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
@@ -641,26 +655,9 @@ def get_config_bursts_exp_sb():
     config['_policies'] = [None, "from_scratch_sb", "pretrained"]
 
 
-    config['train_batch_size'] = 16384
-    config['lr'] = 3e-4
-    config['sgd_minibatch_size'] = 4096
-    config['num_sgd_iter'] = 4
-    config['rollout_fragment_length'] = 100
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
 
     config['_call']['stop'] = {'timesteps_total': steps}
-
-    config['run_uid'] = '_setme'
-    config['num_gpus'] = 0
-
-    config['_trainer'] = "External"
-    config['_policy'] = "PPO"
-
-    config["batch_mode"] = "complete_episodes"
-    config["http_remote_port"] = "http://127.0.0.1:50001"
-
-    config['num_envs_per_worker'] = 10
-    config['num_workers'] = 3
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config['_call']['num_samples'] = 10
     config['_call']['name'] = "adversarial_tune_bursts_exp_sb"
@@ -696,6 +693,7 @@ def get_config_victim_recover_sb():
     """Victim recovers from a pre-trained adversary."""
     # try changing learning rate
     config = get_default_config()
+    config = update_config_external_template(config)
 
     config['_checkpoint_restore'] = './results/checkpoint-adv-external-3273'
 
@@ -705,27 +703,8 @@ def get_config_victim_recover_sb():
     config['_train_steps'] = 9999999999
 
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
-    config["batch_mode"] = "complete_episodes"
     config['_call']['name'] = "adversarial_tune_recover_sb"
     config['_call']['num_samples'] = 4
- 
-    config['train_batch_size'] = 16384
-    config['lr'] = 3e-4
-    config['sgd_minibatch_size'] = 4096
-    config['num_sgd_iter'] = 4
-    config['rollout_fragment_length'] = 100
-
-    config['run_uid'] = '_setme'
-    config['num_gpus'] = 0
-
-    config['_trainer'] = "External"
-    config['_policy'] = "PPO"
-
-    config["batch_mode"] = "complete_episodes"
-    config["http_remote_port"] = "http://127.0.0.1:50001"
-
-    config['num_envs_per_worker'] = 10
-    config['num_workers'] = 3
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
 
@@ -845,7 +824,6 @@ def get_policies_pbt(config, n_policies, obs_space, act_space, policy_template="
         for which_k, which_v_ in which_arr[i].items()
         for which_v in which_v_
     }
-    # policies['default_policy'] = (None, obs_space, act_space, {})#get_agent_config(agent_id=1, which="pretrained", config=config, obs_space=obs_space, act_space=act_space)
     return policies
 
 
@@ -861,7 +839,7 @@ def select_policy_opp_normal_and_adv_pbt(agent_id, config, do_print=False):
     elif agent_id == "player_2":
         # pretrained victim
         out = "player_2_pretrained"
-    if do_print:
+    if do_print or config['_verbose']:
         print(f"Choosing {out} for {agent_id}")
     return out
 
@@ -872,7 +850,7 @@ def select_policy_opp_normal_and_adv(agent_id, config, do_print=False):
     if agent_id == "player_1":
         out = np.random.choice(["player_1_pretrained", "player_1"],
                                p=[p_normal, 1 - p_normal])
-        if do_print:
+        if do_print or config['_verbose']:
             print('Chosen', out)
         return out
     elif agent_id == "player_2":
@@ -881,6 +859,8 @@ def select_policy_opp_normal_and_adv(agent_id, config, do_print=False):
 
 def get_config_victim_recover_withnormal_sb():
     config = get_default_config()
+    config = update_config_external_template(config)
+
     config['_checkpoint_restore_policy'] = {'player_1_pretrained_adversary_sb': './results/checkpoint-adv-external-3273-player_1.pkl'}
 
     # ['humanoid_blocker', 'humanoid'],
@@ -888,31 +868,12 @@ def get_config_victim_recover_withnormal_sb():
     config['_train_steps'] = 9999999999
 
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
-    config["batch_mode"] = "complete_episodes"
     config['_call']['name'] = "adversarial_tune_recover_withnormal_sb"
     config['_call']['num_samples'] = 5
  
-    config['train_batch_size'] = 16384
-    config['lr'] = 3e-4
-    config['sgd_minibatch_size'] = 4096
-    config['num_sgd_iter'] = 4
-    config['rollout_fragment_length'] = 100
-
-    config['run_uid'] = '_setme'
-    config['num_gpus'] = 0
-
-    config['_trainer'] = "External"
-    config['_policy'] = "PPO"
-
-    config["batch_mode"] = "complete_episodes"
-    config["http_remote_port"] = "http://127.0.0.1:50001"
-
-    config['num_envs_per_worker'] = 10
-    config['num_workers'] = 3
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config['_select_policy'] = select_policy_opp_normal_and_adv_sb
     config['_get_policies'] = get_policies_withnormal_sb
-   # config['_run_inline'] = True
     config['_p_normal'] = 0.5
     return config
 
@@ -947,7 +908,6 @@ def get_config_bursts_normal():
     config['_call']['num_samples'] = 1
     # ['humanoid_blocker', 'humanoid'],
 
-    # config['_run_inline'] = True
     config['_select_policy'] = select_policy_opp_normal_and_adv
     config['_get_policies'] = get_policies_all
     return config
@@ -993,28 +953,11 @@ def get_config_bursts_normal_pbt_sb():
     """One trial with bursts and PBT."""
     # try changing learning rate
     config = get_default_config()
-
-    config['train_batch_size'] = 16384
-    config['lr'] = 3e-4
-    config['sgd_minibatch_size'] = 4096
-    config['num_sgd_iter'] = 4
-    config['rollout_fragment_length'] = 100
-
-    config['run_uid'] = '_setme'
-    config['num_gpus'] = 0
-
-    config['_trainer'] = "External"
-    config['_policy'] = "PPO"
-
-    config["batch_mode"] = "complete_episodes"
-    config["http_remote_port"] = "http://127.0.0.1:50001"
-
-    config['num_env_per_worker'] = 10
-    config['num_workers'] = 3
+    config = update_config_external_template(config)
 
     # ['humanoid_blocker', 'humanoid'],
-    config['_train_policies'] = ['player_1']
-    config['_update_config'] = bursts_config_increase
+    config['_train_policies'] = []
+    config['_update_withpolicies'] = bursts_config_increase
     config['_train_steps'] = 10000
     config['_eval_steps'] = 1500
     config['_burst_exponent'] = tune.loguniform(1, 2.2, 2)
@@ -1027,12 +970,13 @@ def get_config_bursts_normal_pbt_sb():
     config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_pbt_sb"
-    config['_call']['num_samples'] = 100
+    config['_call']['num_samples'] = 1
     # ['humanoid_blocker', 'humanoid'],
 
     # config['_run_inline'] = True
-    config['_select_policy'] = partial(select_policy_opp_normal_and_adv_pbt, from_scratch_name="from_scratch_sb")
-    config['_get_policies'] = get_policies_pbt
+    config['_select_policy'] = select_policy_opp_normal_and_adv_pbt
+    config['_get_policies'] = partial(get_policies_pbt, from_scratch_name="from_scratch_sb")
+    config['_do_not_train_policies'] = ['player_1_pretrained']
     return config
 
 

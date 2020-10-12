@@ -177,6 +177,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
             config_updated = config
             if config['_update_config']:
                 config_updated = config['_update_config'](config, iteration)
+            config_updated['_iteration'] = iteration
             results = train_iteration(checkpoint, config_updated)
             checkpoint = results['checkpoint_rllib']
             iteration = results['trainer_iteration']
