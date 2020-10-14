@@ -9,11 +9,10 @@ from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.tune.schedulers import ASHAScheduler
-import gym_compete
 
 from frankenstein.remote_trainer import ExternalTrainer
-from gym_compete_rllib.gym_compete_to_rllib import create_env
-from helpers import sample_int, tune_int
+from gym_compete_rllib import create_env
+from ap_rllib.helpers import sample_int, tune_int
 from ray.tune.logger import pretty_print
 
 

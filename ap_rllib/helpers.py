@@ -7,6 +7,36 @@ import numpy as np
 import pandas as pd
 import ray.tune as tune
 from tqdm import tqdm
+import multiprocessing
+
+
+def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
+    """Initialize ray."""
+    # number of CPUs on the machine
+    num_cpus = multiprocessing.cpu_count()
+
+    # restart ray / use existing session
+    if shutdown:
+        ray.shutdown()
+    if not shutdown:
+        kwargs['ignore_reinit_error'] = True
+
+    # if address is not known, launch new instance
+    if 'address' not in kwargs:
+        # pretending we have more so that workers are never stuck
+        # resources are limited by `tune_cpu` resources that we create
+        kwargs['num_cpus'] = num_cpus * 2
+
+        # `tune_cpu` resources are used to limit number of
+        # concurrent trials
+        kwargs['resources'] = {'tune_cpu': num_cpus}
+        kwargs['temp_dir'] = tmp_dir
+
+    # only showing errors, to prevent too many messages from coming
+    kwargs['logging_level'] = logging.ERROR
+
+    # launching ray
+    return ray.init(log_to_driver=True, **kwargs)
 
 
 def save_gym_space(space):

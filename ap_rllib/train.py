@@ -1,24 +1,19 @@
 import argparse
 import json
-import logging
-import multiprocessing
 import os
 import pickle
 import subprocess
 import sys
+import tensorflow as tf
 import time
 import uuid
 from copy import deepcopy
-
-import ray
-import tensorflow as tf
-from ray import tune
 from ray.tune.logger import pretty_print
 from sacred.observers import MongoObserver
 
-# trials configuration
-from config import CONFIGS, get_trainer
-from helpers import dict_to_sacred, unlink_ignore_error
+from ap_rllib.config import CONFIGS, get_trainer
+from ap_rllib.helpers import dict_to_sacred, unlink_ignore_error, ray_init
+from ray import tune
 
 # parser for main()
 parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
@@ -28,35 +23,6 @@ parser.add_argument('--tune', type=str, help='Run tune', default=None, required=
 parser.add_argument('--tmp_dir', type=str, help='Temporary directory', default='/tmp', required=False)
 parser.add_argument('--config_override', type=str, help='Config override json', default=None, required=False)
 parser.add_argument('--verbose', action='store_true', required=False)
-
-
-def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
-    """Initialize ray."""
-    # number of CPUs on the machine
-    num_cpus = multiprocessing.cpu_count()
-
-    # restart ray / use existing session
-    if shutdown:
-        ray.shutdown()
-    if not shutdown:
-        kwargs['ignore_reinit_error'] = True
-
-    # if address is not known, launch new instance
-    if 'address' not in kwargs:
-        # pretending we have more so that workers are never stuck
-        # resources are limited by `tune_cpu` resources that we create
-        kwargs['num_cpus'] = num_cpus * 2
-
-        # `tune_cpu` resources are used to limit number of
-        # concurrent trials
-        kwargs['resources'] = {'tune_cpu': num_cpus}
-        kwargs['temp_dir'] = tmp_dir
-
-    # only showing errors, to prevent too many messages from coming
-    kwargs['logging_level'] = logging.ERROR
-
-    # launching ray
-    return ray.init(log_to_driver=True, **kwargs)
 
 
 def train_iteration_process(pickle_path):

@@ -26,7 +26,7 @@ from ray.rllib.policy.policy import PolicyID
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, MultiAgentBatch
 
 from gym_compete_rllib.load_gym_compete_policy import nets_to_weights, load_weights_from_vars
-from helpers import filter_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
+from ap_rllib.helpers import filter_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
 
 
 def rllib_samples_to_dict(samples):
