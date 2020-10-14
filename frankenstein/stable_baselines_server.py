@@ -9,7 +9,7 @@ import traceback
 from multiprocessing import Queue as queue
 
 from jsonrpcserver import method, dispatch as dispatch, serve
-from stable_baselines_external_data import SBPPORemoteData
+from frankenstein.stable_baselines_external_data import SBPPORemoteData
 from tornado import web
 
 parser = argparse.ArgumentParser(description='Launch the multiprocess stable baselines server.')

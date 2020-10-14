@@ -87,7 +87,7 @@ Files:
 
 
 Folders:
-* `experiment_analysis` contains notebooks that analyze runs
+* `ap_rllib_experiment_analysis` contains notebooks that analyze runs
 * `frankenstein` contains the code for integrating Stable Baselines and RLLib
 * `gym_compete_rllib` connects rllib to the `multicomp` environment
 

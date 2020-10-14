@@ -10,8 +10,8 @@ setup(
     author_email="sergei.volodin@epfl.ch",
     python_requires=">=3.7.0",
     url="https://github.com/HumanCompatibleAI/better-adversarial-defenses",
-    packages=["ap_rllib", "gym_compete_rllib", "frankenstein"],
-    #package_dir={"": ""},
+    packages=["ap_rllib", "gym_compete_rllib", "frankenstein", "ap_rllib_experiment_analysis"],
+    package_dir={},
     package_data={},
     # We have some non-pip packages as requirements,
     # see requirements-build.txt and requirements.txt.

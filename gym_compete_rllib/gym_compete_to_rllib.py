@@ -3,6 +3,7 @@ import gym
 import numpy as np
 import tensorflow as tf
 import uuid
+import os
 
 from gym_compete_rllib.layers import UnconnectedVariableLayer
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
@@ -333,7 +334,8 @@ def gym_compete_env_with_video(env_name, directory=None):
     env = gym.make(env_name)
 
     # print(config)
-    # config['video_params']['annotation_params']['font'] = '/home/sergei/.fonts/times'
+    home = os.path.expanduser('~')
+    config['video_params']['annotation_params']['font'] = os.path.join(home, '.fonts', 'times')
 
     resolution = config['video_params']['annotation_params']['resolution']
     # print(resolution)

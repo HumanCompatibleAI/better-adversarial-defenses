@@ -5,9 +5,11 @@ import os
 
 import numpy as np
 import pandas as pd
+import ray
 import ray.tune as tune
 from tqdm import tqdm
 import multiprocessing
+import logging
 
 
 def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):

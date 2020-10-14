@@ -9,6 +9,7 @@ import uuid
 from copy import deepcopy
 from time import sleep
 from typing import List
+import os
 
 import ray
 from jsonrpcclient.clients.http_client import HTTPClient
@@ -86,8 +87,9 @@ def train_external(policies, samples, config):
                        'config': config}
 
         # paths for data/answer
-        data_path = run_policy_step_uid + '.pkl'
-        answer_path = run_policy_step_uid + '.answer.pkl'
+        tmp_dir = os.getcwd()#config['tmp_dir']
+        data_path = os.path.join(tmp_dir, run_policy_step_uid + '.pkl')
+        answer_path = os.path.join(tmp_dir, run_policy_step_uid + '.answer.pkl')
         data_paths[policy] = data_path
         answer_paths[policy] = answer_path
 
@@ -209,7 +211,7 @@ def execution_plan(workers, config):
 
 # creating ExternalTrainer
 DEFAULT_CONFIG = deepcopy(config_ppo)
-DEFAULT_CONFIG.update({'http_remote_port': "http://127.0.0.1:50001", 'run_uid': 'aba'})
+DEFAULT_CONFIG.update({'http_remote_port': "http://127.0.0.1:50001", 'run_uid': 'aba', 'tmp_dir': '/tmp/'})
 DEFAULT_CONFIG = with_common_config(DEFAULT_CONFIG)
 
 ExternalTrainer = build_trainer(

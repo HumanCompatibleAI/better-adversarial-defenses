@@ -95,6 +95,8 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     ex = Experiment(config['_call']['name'], base_dir=config['_base_dir'])
     ex.observers.append(MongoObserver(db_name='chai'))
     ex.add_source_file('config.py')
+    ex.add_source_file('bursts.py')
+    ex.add_source_file('helpers.py')
     ex.add_config(config=config, checkpoint=checkpoint, do_track=do_track, **config)
 
     @ex.main
