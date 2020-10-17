@@ -274,7 +274,8 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_l
     env_name_2 = env_name.split('/')[1]
 
     from aprl.envs.gym_compete import load_zoo_agent
-    policy = load_zoo_agent('1', env, env_name, agent_id, None)
+    print(env, env_name, agent_id)
+    policy = load_zoo_agent('1', env, env_name, int(agent_id), None)
     mlp_policy = policy.policy_obj
 
     # random observations
@@ -292,7 +293,7 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_l
             """Get relative error."""
             arr1f = arr1.flatten()
             arr2f = arr2.flatten()
-            delta = 100 * np.abs(arr1f - arr2f) / (eps + np.abs(arr2f))
+            delta = 100 * np.abs(arr1f - arr2f) / (eps + 3 * np.std(arr2f))
             return delta
 
         delta = get_delta(arr1, arr2)
@@ -316,7 +317,7 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_l
     p_new_mean = p_new[:, :, 0]
     results['policy_mean'] = show_error(p_new_mean, p_old_mean, verbose=verbose)
 
-    p_old_var = np.exp(p_old[:, :, 1])
+    p_old_var = np.log(p_old[:, :, 1])
     p_new_var = p_new[:, :, 1]
 
     results['policy_std'] = show_error(p_new_var, p_old_var, verbose=verbose)
