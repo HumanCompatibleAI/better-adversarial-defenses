@@ -6,6 +6,12 @@ export CUDA_VISIBLE_DEVICES=-1
 # launching mongodb
 sudo service mongodb start
 
+# running pytest
+conda run -n adv-tf1 pytest -s -v gym_compete_rllib/test_load_gym_compete_policy.py::test_load
+conda run -n adv-tf2 pytest -s -v gym_compete_rllib/test_load_gym_compete_policy.py::test_load
+conda run -n adv-tf2 pytest -s -v ap_rllib
+conda run -n adv-tf1 pytest -s -v gym_compete_rllib/test_load_gym_compete_policy.py::test_prediction
+
 # launching the stable baselines server
 screen -Sdm "sb_server" conda run -n adv-tf1 python -m frankenstein.stable_baselines_server
 
