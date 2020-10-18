@@ -40,30 +40,39 @@ RUN    mkdir -p /root/.mujoco \
     && unzip mujoco131.zip -d /root/.mujoco \
     && curl -o mujoco200.zip https://www.roboti.us/download/mujoco200_linux.zip \
     && unzip mujoco200.zip -d /root/.mujoco \
-    && ln -s /root/.mujoco/mujoco200_linux /root/.mujoco/mujoco200
+    && ln -s /root/.mujoco/mujoco200_linux /root/.mujoco/mujoco200 \
     && rm mujoco131.zip mujoco200.zip
 
-RUN ln -s /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/x86_64-linux-gnu/libGL.so
+#RUN ln -s /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/x86_64-linux-gnu/libGL.so
 RUN touch /root/.mujoco/mjkey.txt
 ENV LD_LIBRARY_PATH /root/.mujoco/mujoco200/bin:/root/.mujoco/mjpro131/bin:${LD_LIBRARY_PATH}
 
-# installing conda
-RUN wget -c https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh 
-RUN bash Miniconda3-latest-Linux-x86_64.sh -b -f && eval "$(/root/miniconda3/bin/conda shell.bash hook)" && conda init
+# installing miniconda
+# based on https://hub.docker.com/r/continuumio/miniconda3/dockerfile
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.5.11-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh && \
+    /opt/conda/bin/conda clean -tipsy && \
+    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate base" >> ~/.bashrc
+SHELL ["/bin/bash", "-c"]
+ENV PATH /opt/conda/bin:$PATH
 
 # creating environments
 WORKDIR /
 RUN git clone --recursive https://github.com/HumanCompatibleAI/better-adversarial-defenses
 WORKDIR /better-adversarial-defenses
-RUN conda env create -f adv-tf1.yml && conda env create -f adv-tf2.yml
+RUN conda env create -f adv-tf1.yml
+RUN conda env create -f adv-tf2.yml
 
 # installing submodules and the project
-RUN conda run -n adv-tf1 pip install -e multiagent-competition &&\
-    conda run -n adv-tf2 pip install -e multiagent-competition &&\
-    conda run -n adv-tf1 pip install -e adversarial-policies &&\
-    conda run -n adv-tf2 pip install -e adversarial-policies &&\
-    conda run -n adv-tf1 pip install -e . &&\
-    conda run -n adv-tf2 pip install -e . &&\
+RUN conda run -n adv-tf1 pip install -e multiagent-competition
+RUN conda run -n adv-tf2 pip install -e multiagent-competition
+RUN conda run -n adv-tf1 pip install -e adversarial-policies
+RUN conda run -n adv-tf2 pip install -e adversarial-policies
+RUN conda run -n adv-tf1 pip install -e .
+RUN conda run -n adv-tf2 pip install -e .
 RUN conda run -n adv-tf2 python ray/python/ray/setup-dev.py --yes
 
 # cleaning conda cache
