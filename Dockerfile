@@ -66,6 +66,11 @@ RUN conda run -n adv-tf1 pip install -e multiagent-competition &&\
     conda run -n adv-tf2 pip install -e . &&\
 RUN conda run -n adv-tf2 python ray/python/ray/setup-dev.py --yes
 
+# cleaning conda cache
+RUN conda clean --all -y
+RUN conda run -n adv-tf1 pip cache purge
+RUN rm -rf ~/.cache/pip/
+
 # starting Xvfb
 CMD nohup Xvfb -screen 0 1024x768x24 & sleep infinity
 ENV DISPLAY :0
