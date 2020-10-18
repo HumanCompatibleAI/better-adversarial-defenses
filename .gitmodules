@@ -1,9 +1,9 @@
 [submodule "adversarial-policies"]
 	path = adversarial-policies
-	url = git@github.com:HumanCompatibleAI/adversarial-policies.git
+	url = https://github.com/HumanCompatibleAI/adversarial-policies.git
 [submodule "multiagent-competition"]
 	path = multiagent-competition
-	url = git@github.com:HumanCompatibleAI/multiagent-competition.git
+	url = https://github.com/HumanCompatibleAI/multiagent-competition.git
 [submodule "ray"]
 	path = ray
-	url = git@github.com:HumanCompatibleAI/ray.git
+	url = https://github.com/HumanCompatibleAI/ray
