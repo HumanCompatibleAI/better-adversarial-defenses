@@ -11,6 +11,7 @@ conda run -n adv-tf1 pytest -s -v gym_compete_rllib/test_load_gym_compete_policy
 conda run -n adv-tf2 pytest -s -v gym_compete_rllib/test_load_gym_compete_policy.py::test_load
 conda run -n adv-tf2 pytest -s -v ap_rllib
 conda run -n adv-tf1 pytest -s -v gym_compete_rllib/test_load_gym_compete_policy.py::test_prediction
+conda run -n adv-tf2 pytest -s -v gym_compete_rllib/test_load_rllib_env.py
 
 # launching the stable baselines server
 screen -Sdm "sb_server" conda run -n adv-tf1 python -m frankenstein.stable_baselines_server
