@@ -3,6 +3,8 @@
 # exit when any command fails
 set -e
 
+bash ./mjkey-prompt.sh
+
 # Disabling GPU
 export CUDA_VISIBLE_DEVICES=-1
 
