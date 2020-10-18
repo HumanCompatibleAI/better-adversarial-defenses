@@ -14,6 +14,8 @@ Assuming Ubuntu Linux distribution or a compatible one.
 
 Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
 
+Full installation can be found in `Dockerfile`.
+
 1. Install miniconda
 2. Create environments from files `adv-tf1.yml` and `adv-tf2.yml` (tf1 is used for stable baselines, and tf2 is used for rllib)
 3. Install MuJoCo 1.13. On headless setups, install Xvfb
