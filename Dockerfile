@@ -1,7 +1,5 @@
 # Based on OpenAI's mujoco-py Dockerfile
 
-ARG USE_MPI=True
-
 # base stage contains just binary dependencies.
 # This is used in the CI build.
 FROM nvidia/cuda:10.0-runtime-ubuntu18.04 AS base
@@ -65,6 +63,7 @@ RUN git clone --recursive https://github.com/HumanCompatibleAI/better-adversaria
 WORKDIR /better-adversarial-defenses
 RUN conda env create -f adv-tf1.yml
 RUN conda env create -f adv-tf2.yml
+RUN conda update conda -y
 
 # installing submodules and the project
 RUN conda run -n adv-tf1 pip install -e multiagent-competition
