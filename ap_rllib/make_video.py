@@ -22,12 +22,11 @@ def make_video(args):
     # without tensorflow multiprocessing issues
     import os
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    from gym_compete_rllib.gym_compete_to_rllib import created_envs
-    from train import ray_init
-    from config import build_trainer_config
-    import config
-    from config import TRAINERS
-    import pickle, json, codecs
+    from gym_compete_rllib import created_envs
+    from ap_rllib.train import ray_init
+    from ap_rllib.config import build_trainer_config
+    from ap_rllib import config
+    from ap_rllib.config import TRAINERS
     from tqdm import tqdm
     import numpy as np
 
@@ -51,10 +50,10 @@ def make_video(args):
 
     config['num_gpus'] = 0
 
-    num_workers = 0  # 0 if not args.no_video else 5
+    num_workers = 0# if not args.no_video else 5
 
     config['num_workers'] = num_workers
-    config['num_envs_per_worker'] = 1
+    config['num_envs_per_worker'] = 1 if not args.no_video else 8
 
     # which opponent to load?
     if args.load_normal:
@@ -93,6 +92,7 @@ def make_video(args):
         ties = 100. * np.sum(stats == 0) / trials
         print(f"Player {player} total trials {trials} win rate {wins}%% loss rate {losses}%% tie rate {ties}%%" % ())
 
+        results['players'] = list(stats_all.keys())
         results['trials_' + player] = trials
         results['wins_' + player] = wins
         results['losses_' + player] = losses

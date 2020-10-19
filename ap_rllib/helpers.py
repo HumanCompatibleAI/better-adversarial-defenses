@@ -5,8 +5,40 @@ import os
 
 import numpy as np
 import pandas as pd
+import ray
 import ray.tune as tune
 from tqdm import tqdm
+import multiprocessing
+import logging
+
+
+def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
+    """Initialize ray."""
+    # number of CPUs on the machine
+    num_cpus = multiprocessing.cpu_count()
+
+    # restart ray / use existing session
+    if shutdown:
+        ray.shutdown()
+    if not shutdown:
+        kwargs['ignore_reinit_error'] = True
+
+    # if address is not known, launch new instance
+    if 'address' not in kwargs:
+        # pretending we have more so that workers are never stuck
+        # resources are limited by `tune_cpu` resources that we create
+        kwargs['num_cpus'] = num_cpus * 2
+
+        # `tune_cpu` resources are used to limit number of
+        # concurrent trials
+        kwargs['resources'] = {'tune_cpu': num_cpus}
+        kwargs['temp_dir'] = tmp_dir
+
+    # only showing errors, to prevent too many messages from coming
+    kwargs['logging_level'] = logging.ERROR
+
+    # launching ray
+    return ray.init(log_to_driver=True, **kwargs)
 
 
 def save_gym_space(space):
@@ -152,7 +184,7 @@ def fill_which_training(rdf, policies):
     """Fill data on which player is being trained."""
     which_training_arr = []
     for _, line in rdf.iterrows():
-        currently_training = set([p for p in policies if not np.isnan(line[f"info/learner/{p}/total_loss"])])
+        currently_training = set([p for p in policies if not np.isnan(line[f"info/learner/{p}/policy_loss"])])
         assert len(currently_training) == 1
         which_training = int(list(currently_training)[0].split('_')[1])
         which_training_arr.append(which_training)
@@ -173,3 +205,23 @@ def burst_sizes(wt):
             current = 0
         prev_val = val
     return arr
+
+def iterate_bursts(rdf, target, min_size=5, state=None, target_field = 'which_training'):
+    """Iterate a function over all bursts."""
+    seen_data = 0
+
+    #with tqdm(total=len(rdf)) as pbar:
+    while seen_data < len(rdf):
+        accumulator = []
+        for i in range(seen_data, len(rdf)):
+            if (rdf.iloc[i][target_field] == rdf.iloc[seen_data][target_field]) or len(accumulator) < min_size:
+                accumulator.append(rdf.iloc[i])
+            else:
+                break
+        accumulator = pd.DataFrame(accumulator)
+                
+        state = target(rdf=rdf, trained_now=accumulator.iloc[0][target_field],
+                       accumulator=accumulator, state=state)
+
+        seen_data += len(accumulator)
+            #pbar.update(len(accumulator))

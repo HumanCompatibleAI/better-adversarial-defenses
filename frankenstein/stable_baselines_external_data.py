@@ -7,7 +7,7 @@ from stable_baselines.common import callbacks
 from stable_baselines.logger import KVWriter, SeqWriter, DEBUG
 from stable_baselines.ppo2.ppo2 import Runner as PPORunner
 
-from helpers import load_gym_space
+from ap_rllib.helpers import load_gym_space
 
 
 class dummy_env(object):

@@ -3,8 +3,7 @@ import gym
 import numpy as np
 import tensorflow as tf
 import uuid
-from gym.wrappers import Monitor
-from ray.tune.registry import register_env
+import os
 
 from gym_compete_rllib.layers import UnconnectedVariableLayer
 from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
@@ -335,7 +334,8 @@ def gym_compete_env_with_video(env_name, directory=None):
     env = gym.make(env_name)
 
     # print(config)
-    # config['video_params']['annotation_params']['font'] = '/home/sergei/.fonts/times'
+    home = os.path.expanduser('~')
+    config['video_params']['annotation_params']['font'] = os.path.join(home, '.fonts', 'times')
 
     resolution = config['video_params']['annotation_params']['resolution']
     # print(resolution)
@@ -358,25 +358,3 @@ def gym_compete_env_with_video(env_name, directory=None):
     # delattr(tf, 'Session')
 
     return env
-
-
-created_envs = []
-
-
-def create_env(config):
-    if config['with_video']:
-        if config['env_name'].startswith('multicomp'):
-            env = gym_compete_env_with_video(config['env_name'])
-        else:
-            env = Monitor(gym.make(config['env_name']), directory='./', force=True)
-    else:
-        env = gym.make(config['env_name'])
-    created_envs.append(env)
-    if config['SingleAgentToMultiAgent']:
-        env = SingleAgentToMultiAgent(env)
-    if config['env_name'].startswith('multicomp'):
-        env = GymCompeteToRLLibAdapter(lambda: env)
-    return env
-
-
-register_env("multicomp", create_env)

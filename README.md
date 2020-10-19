@@ -14,6 +14,8 @@ Assuming Ubuntu Linux distribution or a compatible one.
 
 Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
 
+Full installation can be found in `Dockerfile`.
+
 1. Install miniconda
 2. Create environments from files `adv-tf1.yml` and `adv-tf2.yml` (tf1 is used for stable baselines, and tf2 is used for rllib)
 3. Install MuJoCo 1.13. On headless setups, install Xvfb
@@ -21,11 +23,12 @@ Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
 5. Install `gym_compete` and `aprl` via setup.py (included into the repository as submodules)
 6. Having ray 0.8.6 installed, run `python ray/python/ray/setup-dev.py` to patch your ray installation
 7. Install fonts for rendering: `conda install -c conda-forge mscorefonts; mkdir ~/.fonts; cp $CONDA_PREFIX/fonts/*.ttf ~/.fonts; fc-cache -f -v`
+8. Install the library: `pip install -e .`
 
 ## How to train
 1. To test the setup with rllilb PPO trainer, run:
 
-`(tf2) $ python train.py --tune test`
+`(tf2) $ python -m ap_rllib.train --tune test`
 
 Log files will appear in `~/ray_results/run_type/run_name`. Use tensorboard in this folder. Checkpoints will be in `~/ray_results/iteration_name` where `iteration_name` can be obtained from `run_type/run_name` in variable `checkpoint_rllib` (see notebooks in the analysis folder). `run_type` is a string corresponding to the `test` argument in the command that you ran. See CONFIGS variable in `config.py`.
 
@@ -33,7 +36,7 @@ Log files will appear in `~/ray_results/run_type/run_name`. Use tensorboard in t
 
 (on headless setups): `$ Xvfb -screen 0 1024x768x24&; export DISPLAY=:0`
 
-`(tf2) $ python make_video.py --checkpoint path/to/checkpoint/checkpoint-xxx --config your-config-at-training --display $DISPLAY`
+`(tf2) $ python -m ap_rllib.make_video --checkpoint path/to/checkpoint/checkpoint-xxx --config your-config-at-training --display $DISPLAY`
 
 Options:
 `--load_normal True` to evaluate against normal opponent instead of the trained one
@@ -41,26 +44,26 @@ Options:
 `--no_video True` will disable video. Use this to evaluate the performance with more episodes faster
 
 3. To run PBT with bursts:
-`(tf2) $ python train.py --tune bursts_exp_withnormal_pbt`
+`(tf2) $ python -m ap_rllib.train --tune bursts_exp_withnormal_pbt`
 
 4. To run training with stable baselines:
 Running Stable Baselines server:
 
-`(tf1) $ python frankenstein/stable_baselines_server.py`
+`(tf1) $ python -m frankenstein.stable_baselines_server`
 
 5. Training in Inverted Pendulum (single-agent):
 
-`(tf2) $ python train.py --tune external_cartpole`
+`(tf2) $ python -m ap_rllib.train --tune external_cartpole`
 
-`(tf2) $ python make_video.py --checkpoint path/checkpoint-xxx --display $DISPLAY --config external_cartpole --steps 1`
+`(tf2) $ python -m ap_rllib.make_video --checkpoint path/checkpoint-xxx --display $DISPLAY --config external_cartpole --steps 1`
 
 
 ### Tips and tricks
 * If you want to quickly iterate with your config (use smaller batch size and no remote workers), pass an option to the trainer:
-`python train.py ... ... ... --config_override='{"train_batch_size": 1000, "sgd_minibatch_size": 1000, "num_workers": 0, "_run_inline": 1}'`
+`python -m ap_rllib.train ... ... ... --config_override='{"train_batch_size": 1000, "sgd_minibatch_size": 1000, "num_workers": 0, "_run_inline": 1}'`
 
 * If you want to output additional information, add the following option:
-`python train.py ... ... ... --verbose`
+`python -m ap_rllib.train ... ... ... --verbose`
 
 * stable baselines server and the `train.py` scripts should be launched from the same folder, otherwise the temporary files will not be propagated
 
@@ -73,10 +76,10 @@ Running Stable Baselines server:
 ## Files and folders
 
 Files:
-* `train.py` the main train script
-* `config.py` configurations for the train script
-* `helpers.py` helper functions for the whole project
-* `make_video.py` creates videos for the policies
+* `ap_rllib/train.py` the main train script
+* `ap_rllib/config.py` configurations for the train script
+* `ap_rllib/helpers.py` helper functions for the whole project
+* `ap_rllib/make_video.py` creates videos for the policies
 * `frankenstein/remote_trainer.py` implements an RLLib trainer that pickles data and sends the filename via HTTP
 * `frankenstein/stable_baselines_server.py` implements an HTTP server that waits for weights and samples, then trains the policy and returns the updated weights
 * `frankenstein/stable_baselines_external_data.py` implements the 'fake' Runner that allows for the training using Stable Baselines ppo2 algorithm on existing data
@@ -86,7 +89,7 @@ Files:
 
 
 Folders:
-* `experiment_analysis` contains notebooks that analyze runs
+* `ap_rllib_experiment_analysis` contains notebooks that analyze runs
 * `frankenstein` contains the code for integrating Stable Baselines and RLLib
 * `gym_compete_rllib` connects rllib to the `multicomp` environment
 

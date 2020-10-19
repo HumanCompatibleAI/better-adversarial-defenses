@@ -1,4 +1,5 @@
 import gym
+import os
 import numpy as np
 import pickle
 import tensorflow as tf
@@ -7,9 +8,10 @@ from matplotlib import pyplot as plt
 
 from gym_compete_rllib.layers import DiagonalNormalSamplingLayer, ValuePostprocessingLayer
 from gym_compete_rllib.layers import ObservationPreprocessingLayer, UnconnectedVariableLayer
+import gym_compete
 
 # path with .pkl agent files
-pickle_path = '/scratch/sergei/better-adversarial-defenses/multiagent-competition/gym_compete/agent_zoo/'
+pickle_path = os.path.join(os.path.dirname(gym_compete.__file__), 'agent_zoo')
 
 # hidden dimension of mlp
 hid_dim = 64
@@ -169,7 +171,7 @@ def load_weights_from_vars(variables, value_net, policy_net, clip_obs=CLIP_OBS_D
 
 
 def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables_spec=None, version=1,
-                          load_weights=True, obs_dim=380, act_dim=17, clip_obs=5):
+                          load_weights=True, obs_dim=380, act_dim=17, clip_obs=5, raise_on_weight_load_failure=False):
     """Get networks from a pickle file."""
     results = {}
 
@@ -242,7 +244,7 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
 
             # loading data
             policy_unpickle = pickle.load(
-                open(pickle_path + env_name_2 + '/agent%s_parameters-v%d.pkl' % (str(agent_id), version), 'rb'))
+                open(os.path.join(pickle_path, env_name_2, 'agent%s_parameters-v%d.pkl' % (str(agent_id), version)), 'rb'))
 
             # obtaining list of variables
             variables = get_variables(variables_spec=variables_spec, policy_unpickle=policy_unpickle)
@@ -252,8 +254,9 @@ def get_policy_value_nets(env_name, agent_id, pickle_path=pickle_path, variables
             # loading weights
             load_weights_from_vars(variables, results['value'], results['policy'], clip_obs, load_weights=load_weights)
         except Exception as e:
-            print("Weight load failed", agent_id)
-            print(e)
+            print(f"Weight load failed: {e}, {agent_id}")
+            if raise_on_weight_load_failure:
+                raise e
 
     return results
 
@@ -271,7 +274,8 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_l
     env_name_2 = env_name.split('/')[1]
 
     from aprl.envs.gym_compete import load_zoo_agent
-    policy = load_zoo_agent('1', env, env_name, agent_id, None)
+    print(env, env_name, agent_id)
+    policy = load_zoo_agent('1', env, env_name, int(agent_id), None)
     mlp_policy = policy.policy_obj
 
     # random observations
@@ -289,7 +293,7 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_l
             """Get relative error."""
             arr1f = arr1.flatten()
             arr2f = arr2.flatten()
-            delta = 100 * np.abs(arr1f - arr2f) / (eps + np.abs(arr2f))
+            delta = 100 * np.abs(arr1f - arr2f) / (eps + 3 * np.std(arr2f))
             return delta
 
         delta = get_delta(arr1, arr2)
@@ -313,7 +317,7 @@ def difference_new_networks(env_name, agent_id, model_value, model_policy_mean_l
     p_new_mean = p_new[:, :, 0]
     results['policy_mean'] = show_error(p_new_mean, p_old_mean, verbose=verbose)
 
-    p_old_var = np.exp(p_old[:, :, 1])
+    p_old_var = np.log(p_old[:, :, 1])
     p_new_var = p_new[:, :, 1]
 
     results['policy_std'] = show_error(p_new_var, p_old_var, verbose=verbose)
