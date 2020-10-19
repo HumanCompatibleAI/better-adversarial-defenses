@@ -18,6 +18,7 @@ RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula selec
     vim sudo rsync \
     wget \
     htop \
+    dialog \
     screen mongodb-server \
     libosmesa6-dev libgl1-mesa-glx libglfw3 python-pygame libsdl1.2-dev pkg-config libfreetype6-dev \
     build-essential autoconf libtool pkg-config python-opengl python-pil \
