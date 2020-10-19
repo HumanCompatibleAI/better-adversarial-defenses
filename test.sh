@@ -9,7 +9,7 @@ if [ "X$DISPLAY" == "X" ]
 then
 	echo "Launching Xvfb..."
 	Xvfb -screen 0 1024x768x24&
-	xvfb_pid=$?
+	xvfb_pid=$!
 	export DISPLAY=:0
 fi
 
