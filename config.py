@@ -968,9 +968,9 @@ def get_config_bursts_normal_pbt_sb():
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
 
     config['_call']['stop'] = {'timesteps_total': steps}
-    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
     config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_pbt_sb"
-    config['_call']['num_samples'] = 1
+    config['_call']['num_samples'] = 50
     # ['humanoid_blocker', 'humanoid'],
 
     # config['_run_inline'] = True
