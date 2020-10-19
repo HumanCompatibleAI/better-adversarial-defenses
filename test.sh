@@ -4,12 +4,10 @@
 set -e
 
 # possibly starting Xvfb
-xvfb_pid=""
 if [ "X$DISPLAY" == "X" ]
 then
 	echo "Launching Xvfb..."
-	Xvfb -screen 0 1024x768x24&
-	xvfb_pid=$?
+	screen -Sdm "xvfb_test" Xvfb -screen 0 1024x768x24
 	export DISPLAY=:0
 fi
 
@@ -36,7 +34,7 @@ conda run -n adv-tf2 pytest -s -v gym_compete_rllib/test_load_rllib_env.py
 
 # launching the stable baselines server
 echo "Launching SB server..."
-screen -Sdm "sb_server" conda run -n adv-tf1 python -m frankenstein.stable_baselines_server
+screen -Sdm "sb_server_test" conda run -n adv-tf1 python -m frankenstein.stable_baselines_server
 
 # launching training with a few iterations
 echo "Running training..."
@@ -51,14 +49,10 @@ conda run -n adv-tf2 python -m ap_rllib.make_video --config external_test --chec
 
 # closing the screen session
 echo "Stopping sb server"
-screen -S "sb_server" -X kill
+screen -S "sb_server_test" -X kill
+screen -S "xvfb_test" -X kill || true
 
 # stopping ray
 echo "Stopping ray and Xvfb"
 conda run -n adv-tf2 ray stop
 pkill -f -9 ray
-
-if [ "X$xvfb_pid" != "X" ]
-then
-	kill -9 $xvfb_pid
-fi
