@@ -57,31 +57,28 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.5.11-Linux-x86
 SHELL ["/bin/bash", "-c"]
 ENV PATH /opt/conda/bin:$PATH
 
-# creating environments
+# cloning repository
 WORKDIR /
 RUN git clone --recursive https://github.com/HumanCompatibleAI/better-adversarial-defenses
 WORKDIR /better-adversarial-defenses
-RUN conda env create -f adv-tf1.yml
-RUN conda env create -f adv-tf2.yml
-RUN conda update conda -y
 
-# installing submodules and the project
-RUN conda run -n adv-tf1 pip install -e multiagent-competition
-RUN conda run -n adv-tf2 pip install -e multiagent-competition
-RUN conda run -n adv-tf1 pip install -e adversarial-policies
-RUN conda run -n adv-tf2 pip install -e adversarial-policies
-RUN conda run -n adv-tf1 pip install -e .
-RUN conda run -n adv-tf2 pip install -e .
-RUN conda run -n adv-tf2 python ray/python/ray/setup-dev.py --yes
 
-# cleaning conda cache
-RUN conda clean --all -y
-RUN conda run -n adv-tf1 pip cache purge
-RUN rm -rf ~/.cache/pip/
-
-# starting Xvfb
-CMD nohup Xvfb -screen 0 1024x768x24 & sleep infinity
-ENV DISPLAY :0
+# creating environments
+RUN conda env create -f adv-tf1.yml \
+ && conda env create -f adv-tf2.yml \
+ && conda update conda -y \
+ # installing submodules and the project
+ && conda run -n adv-tf1 pip install -e multiagent-competition \
+ && conda run -n adv-tf2 pip install -e multiagent-competition \
+ && conda run -n adv-tf1 pip install -e adversarial-policies \
+ && conda run -n adv-tf2 pip install -e adversarial-policies \
+ && conda run -n adv-tf1 pip install -e . \
+ && conda run -n adv-tf2 pip install -e . \
+ && conda run -n adv-tf2 python ray/python/ray/setup-dev.py --yes \
+ # cleaning conda cache
+ && conda clean --all -y \
+ && conda run -n adv-tf1 pip cache purge \
+ && rm -rf ~/.cache/pip/
 
 # running tests
 CMD bash test.sh

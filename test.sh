@@ -3,6 +3,16 @@
 # exit when any command fails
 set -e
 
+# possibly starting Xvfb
+xvfb_pid=""
+if [ "X$DISPLAY" == "X" ]
+then
+	echo "Launching Xvfb..."
+	Xvfb -screen 0 1024x768x24&
+	xvfb_pid=$?
+	export DISPLAY=:0
+fi
+
 bash ./mjkey-prompt.sh
 
 # Disabling GPU
@@ -44,6 +54,11 @@ echo "Stopping sb server"
 screen -S "sb_server" -X kill
 
 # stopping ray
-echo "Stopping ray"
+echo "Stopping ray and Xvfb"
 conda run -n adv-tf2 ray stop
 pkill -f -9 ray
+
+if [ "X$xvfb_pid" != "X" ]
+then
+	kill -9 $xvfb_pid
+fi
