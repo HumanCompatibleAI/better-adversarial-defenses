@@ -6,19 +6,16 @@ FROM ubuntu:18.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive
 
 # installing apt dependencies
-RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections \
-    && apt-get update -q \
+RUN apt-get update -q \
     && apt-get install -y --no-install-recommends \
 	autoconf build-essential cmake curl dialog \
 	ffmpeg git htop libavcodec-dev libavformat-dev \
 	libfreetype6-dev libgl1-mesa-dev libgl1-mesa-glx libgle3 libglew-dev \
-	libglfw3 libosmesa6-dev libportmidi-dev libqt4-dbus libqt4-network \
-	libqt4-script libqt4-test libqt4-xml libqtcore4 libqtgui4 \
+	libglfw3 libosmesa6-dev libportmidi-dev \
 	libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev \
 	libswscale-dev libtool mongodb-server net-tools patchelf \
-	pkg-config qt4-designer qt4-dev-tools rsync screen \
-	subversion sudo ttf-mscorefonts-installer unzip vim \
-	wget xvfb \
+	pkg-config rsync screen ca-certificates \
+	subversion sudo unzip vim wget xvfb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -56,9 +53,12 @@ WORKDIR /better-adversarial-defenses
 
 
 # creating environments
-RUN conda env create -f adv-tf1.yml \
+RUN conda update conda -y \
+ && mkdir /root/.fonts \
+ && conda env create -f adv-tf1.yml \
  && conda env create -f adv-tf2.yml \
- && conda update conda -y \
+ && conda run -n adv-tf2 cp $CONDA_PREFIX/fonts/*.ttf /root/.fonts \
+ && fc-cache -f -v \
  # installing submodules and the project
  && conda run -n adv-tf1 pip install -e multiagent-competition \
  && conda run -n adv-tf2 pip install -e multiagent-competition \
