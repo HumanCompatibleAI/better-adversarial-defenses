@@ -54,10 +54,9 @@ WORKDIR /better-adversarial-defenses
 
 # creating environments
 RUN conda update conda -y \
- && mkdir /root/.fonts \
  && conda env create -f adv-tf1.yml \
  && conda env create -f adv-tf2.yml \
- && conda run -n adv-tf2 cp $CONDA_PREFIX/fonts/*.ttf /root/.fonts \
+ && ln -s /opt/conda/envs/adv-tf2/fonts/ /root/.fonts \
  && fc-cache -f -v \
  # installing submodules and the project
  && conda run -n adv-tf1 pip install -e multiagent-competition \
