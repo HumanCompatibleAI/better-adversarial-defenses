@@ -5,22 +5,44 @@ import matplotlib.ticker as ticker
 from datetime import datetime
 import humanize
 import argparse
+import inquirer
 
 parser = argparse.ArgumentParser(description="Visualize recorded memory data")
 parser.add_argument('--input', type=str, help="input file (from mem_profile.py)", required=True)
+parser.add_argument('--max_lines', type=int, help="Maximal number of lines to read", default=-1, required=False)
+parser.add_argument('--customize', help="Select which processes to show", action="store_true")
 
+
+prefixes = ["ray::ImplicitFunc", "ray::RolloutWorker"]
 args = parser.parse_args()
 
-f = open(args.input, 'r').read().splitlines()
+
+def get_lines():
+    """Get lines from the log file as json strings."""
+    f = open(args.input, 'r')
+    for i, line in enumerate(f):
+        if args.max_lines > 0 and i > args.max_lines:
+            break
+        yield json.loads(line)
+    return f
+
+# ask which processes to show
+if args.customize:
+    print("Reading the list of processes...")
+    all_names = sorted({p['name'] for line in get_lines() for p in line})
+    questions = [inquirer.Checkbox(
+            'processes',
+                message="Which processes to show?",
+                choices=all_names)]
+    answers = inquirer.prompt(questions)  # returns a dict
+    prefixes = answers['processes']
 
 # maps pid -> details
 processes = {}
 
-for line in f:
-    line = json.loads(line)
+for line in get_lines():
     for p in line:
-        if p['name'] == 'ray::IDLE' or p['name'] == 'raylet': continue
-        if not p['name'].startswith('ray'): continue
+        if not any([p['name'].startswith(x) for x in prefixes]): continue
         p['timestep'] = datetime.fromtimestamp(p['timestep'])
         p['total_mem'] = p['mem_info']['rss']#np.sum(list(p['mem_info'].values()))
         if p['id'] not in processes:

@@ -4,14 +4,13 @@
 # In[1]:
 
 
+import os
 import pickle
 import uuid
 from copy import deepcopy
-from time import sleep
 from typing import List
 
 import ray
-from jsonrpcclient.clients.http_client import HTTPClient
 from ray.rllib.agents import with_common_config
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG as config_ppo
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
@@ -25,8 +24,9 @@ from ray.rllib.execution.rollout_ops import ParallelRollouts, ConcatBatches, Sta
 from ray.rllib.policy.policy import PolicyID
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, MultiAgentBatch
 
+from ap_rllib.helpers import filter_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
+from frankenstein.remote_communicator import RemoteHTTPPickleCommunicator
 from gym_compete_rllib.load_gym_compete_policy import nets_to_weights, load_weights_from_vars
-from helpers import filter_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
 
 
 def rllib_samples_to_dict(samples):
@@ -62,6 +62,8 @@ def train_external(policies, samples, config):
     config['_observation_space'] = save_gym_space(obs_space)
     config['_action_space'] = save_gym_space(act_space)
 
+    communicator = RemoteHTTPPickleCommunicator(config['http_remote_port'])
+
     # requesting to train all policies
     for policy in to_train:
         # only training the requested policies
@@ -86,8 +88,9 @@ def train_external(policies, samples, config):
                        'config': config}
 
         # paths for data/answer
-        data_path = run_policy_step_uid + '.pkl'
-        answer_path = run_policy_step_uid + '.answer.pkl'
+        tmp_dir = os.getcwd()  # config['tmp_dir']
+        data_path = os.path.join(tmp_dir, run_policy_step_uid + '.pkl')
+        answer_path = os.path.join(tmp_dir, run_policy_step_uid + '.answer.pkl')
         data_paths[policy] = data_path
         answer_paths[policy] = answer_path
 
@@ -95,25 +98,15 @@ def train_external(policies, samples, config):
         pickle.dump(data_policy, open(data_path, 'wb'))
 
         # connecting to the RPC server
-        client = HTTPClient(config['http_remote_port'])
-        result = client.process(run_policy_uid, uid=0, data_path=data_path, answer_path=answer_path).data.result
-
-        assert result is True, str(result)
+        communicator.submit_job(client_id=run_policy_uid, data_path=data_path,
+                                answer_path=answer_path, data=data_policy)
 
     # obtaining policies
     for policy in to_train:
         answer_path = answer_paths[policy]
         data_path = data_paths[policy]
 
-        # loading weights and information
-        # busy wait with a delay
-        while True:
-            try:
-                weights_info = pickle.load(open(answer_path, 'rb'))
-                break
-            except Exception as e:
-                print(e, "Waiting")
-                sleep(0.5)
+        weights_info = communicator.get_result(answer_path)
 
         # checking correctness
         if not (weights_info[0] is True):
@@ -209,7 +202,7 @@ def execution_plan(workers, config):
 
 # creating ExternalTrainer
 DEFAULT_CONFIG = deepcopy(config_ppo)
-DEFAULT_CONFIG.update({'http_remote_port': "http://127.0.0.1:50001", 'run_uid': 'aba'})
+DEFAULT_CONFIG.update({'http_remote_port': "http://127.0.0.1:50001", 'run_uid': 'aba', 'tmp_dir': '/tmp/'})
 DEFAULT_CONFIG = with_common_config(DEFAULT_CONFIG)
 
 ExternalTrainer = build_trainer(

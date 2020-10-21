@@ -22,12 +22,11 @@ def make_video(args):
     # without tensorflow multiprocessing issues
     import os
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    from gym_compete_rllib.gym_compete_to_rllib import created_envs
-    from train import ray_init
-    from config import build_trainer_config
-    import config
-    from config import TRAINERS
-    import pickle, json, codecs
+    from gym_compete_rllib import created_envs
+    from ap_rllib.train import ray_init
+    from ap_rllib.config import build_trainer_config
+    from ap_rllib import config
+    from ap_rllib.config import TRAINERS
     from tqdm import tqdm
     import numpy as np
 

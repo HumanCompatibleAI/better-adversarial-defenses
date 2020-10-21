@@ -1,11 +1,23 @@
-from ray.tune.analysis import Analysis
-import pandas as pd
-import multiprocessing
-from make_video import make_video, parser
+from ap_rllib.make_video import make_video, parser
+from ap_rllib.config import CONFIGS
 import ray
 import shutil
 from IPython.display import display, FileLink
 import os
+from os.path import expanduser
+from ap_rllib.helpers import get_df_from_logdir
+
+
+def get_last_checkpoint(config_name):
+    """Get last checkpoint for an experiment."""
+    home = expanduser("~")
+    trial_name = CONFIGS[config_name]['_call']['name']
+    path = os.path.join(home, 'ray_results', trial_name)
+    trial = sorted(os.listdir(path))[-1]
+    path_with_trial = os.path.join(path, trial)
+    df = get_df_from_logdir(path_with_trial, do_tqdm=False)
+    checkpoint = str(df.checkpoint_rllib.iloc[-1])
+    return checkpoint
 
 def make_video_parallel(checkpoints, arguments):
     """Run make_video in parallel.
