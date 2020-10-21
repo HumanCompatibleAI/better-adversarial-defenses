@@ -6,8 +6,7 @@ FROM ubuntu:18.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive
 
 # installing apt dependencies
-RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections \
-    && apt-get update -q \
+RUN apt-get update -q \
     && apt-get install -y --no-install-recommends \
 	autoconf build-essential cmake curl dialog \
 	ffmpeg git htop libavcodec-dev libavformat-dev \
@@ -17,8 +16,7 @@ RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula selec
 	libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev \
 	libswscale-dev libtool mongodb-server net-tools patchelf \
 	pkg-config qt4-designer qt4-dev-tools rsync screen \
-	subversion sudo ttf-mscorefonts-installer unzip vim \
-	wget xvfb \
+	subversion sudo unzip vim wget xvfb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -59,6 +57,8 @@ WORKDIR /better-adversarial-defenses
 RUN conda env create -f adv-tf1.yml \
  && conda env create -f adv-tf2.yml \
  && conda update conda -y \
+ && conda install -c conda-forge mscorefonts; mkdir ~/.fonts \
+ && cp $CONDA_PREFIX/fonts/*.ttf ~/.fonts; fc-cache -f -v \
  # installing submodules and the project
  && conda run -n adv-tf1 pip install -e multiagent-competition \
  && conda run -n adv-tf2 pip install -e multiagent-competition \
