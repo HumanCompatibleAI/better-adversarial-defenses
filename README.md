@@ -7,7 +7,11 @@ In this repository:
 3. Victim is trained against multiple adversaries as well as the normal opponent ('population-based training')
 4. Stable Baselines are connected to rllib to train by sampling with rllib and optimizing with Stable Baslines
 
+Bursts training: (left) training opponents ('normal' pre-trained, adversary trained from scratch, victim policy) in an alternating way (middle) 'burst' size (right) win rate<br />
+<img height="200" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/which_and_burst_size.png" /> <img height="200" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/win_rate.png" />
 
+Bursts training: (left) mean reward for agents, (right) value loss for agents<br />
+<img height="300" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/reward_mean.png" /> <img height="300" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/value_loss.png" />
 
 ## Setup
 ### Using Docker
