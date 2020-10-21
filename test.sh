@@ -17,8 +17,11 @@ bash ./mjkey-prompt.sh
 export CUDA_VISIBLE_DEVICES=-1
 
 # launching mongodb
-echo "Starting mongo"
-sudo service mongodb start
+if  [ "$(netstat -tulpn|grep 27017|wc -l)" == "0" ]
+then
+    echo "Starting mongo"
+    sudo service mongodb start
+fi
 
 # running pytest
 echo "Testing weights load from pickle files (tf1)"
