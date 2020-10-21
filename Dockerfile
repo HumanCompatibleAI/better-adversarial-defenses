@@ -2,32 +2,23 @@
 
 # base stage contains just binary dependencies.
 # This is used in the CI build.
-FROM nvidia/cuda:10.0-runtime-ubuntu18.04 AS base
+FROM ubuntu:18.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive
 
 # installing apt dependencies
 RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections \
     && apt-get update -q \
     && apt-get install -y --no-install-recommends \
-    build-essential cmake \
-    curl \
-    ffmpeg xvfb \
-    git \
-    net-tools \
-    unzip \
-    vim sudo rsync \
-    wget \
-    htop \
-    dialog \
-    screen mongodb-server \
-    libosmesa6-dev libgl1-mesa-glx libglfw3 python-pygame libsdl1.2-dev pkg-config libfreetype6-dev \
-    build-essential autoconf libtool pkg-config python-opengl python-pil \
-    python-pyrex python-pyside.qtopengl idle-python2.7 qt4-dev-tools qt4-designer libqtgui4 \
-    libqtcore4 libqt4-xml libqt4-test libqt4-script libqt4-network libqt4-dbus python-qt4 python-qt4-gl \
-    libgle3 python-dev libgl1-mesa-dev libgl1-mesa-glx libosmesa6-dev python3-scipy libglew-dev patchelf \
-    python-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev \
-    python-numpy subversion libportmidi-dev ffmpeg libswscale-dev libavformat-dev libavcodec-dev \
-    ttf-mscorefonts-installer \
+	autoconf build-essential cmake curl dialog \
+	ffmpeg git htop libavcodec-dev libavformat-dev \
+	libfreetype6-dev libgl1-mesa-dev libgl1-mesa-glx libgle3 libglew-dev \
+	libglfw3 libosmesa6-dev libportmidi-dev libqt4-dbus libqt4-network \
+	libqt4-script libqt4-test libqt4-xml libqtcore4 libqtgui4 \
+	libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev \
+	libswscale-dev libtool mongodb-server net-tools patchelf \
+	pkg-config qt4-designer qt4-dev-tools rsync screen \
+	subversion sudo ttf-mscorefonts-installer unzip vim \
+	wget xvfb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
