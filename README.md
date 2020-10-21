@@ -10,6 +10,14 @@ In this repository:
 
 
 ## Setup
+### Using Docker
+1. Install Docker and git
+2. Clone the repository: `git clone https://github.com/HumanCompatibleAI/better-adversarial-defenses.git`
+3. Build the Docker image: `docker build -t ap_rllib better-adversarial-defenses`
+3. Run tests: `docker container run -it ap_rllib`
+4. Run shell: `docker container run -it ap_rllib /bin/bash`
+
+### Using Ubuntu
 Assuming Ubuntu Linux distribution or a compatible one.
 
 Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
@@ -17,6 +25,7 @@ Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
 Full installation can be found in `Dockerfile`.
 
 1. Install miniconda
+2. `git clone --recursive https://github.com/HumanCompatibleAI/better-adversarial-defenses.git`
 2. Create environments from files `adv-tf1.yml` and `adv-tf2.yml` (tf1 is used for stable baselines, and tf2 is used for rllib)
 3. Install MuJoCo 1.13. On headless setups, install Xvfb
 4. Install mongodb and create a database `chai`

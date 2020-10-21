@@ -59,3 +59,6 @@ screen -S "xvfb_test" -X kill || true
 echo "Stopping ray and Xvfb"
 conda run -n adv-tf2 ray stop
 pkill -f -9 ray
+
+# final message
+echo "All tests PASSED!"
