@@ -16,6 +16,17 @@ from ap_rllib.helpers import sample_int, tune_int
 from ray.tune.logger import pretty_print
 from ap_rllib.bursts import bursts_config_increase, bursts_config
 
+CONFIGS = {}
+
+
+def register_config(name):
+    """Register configuration."""
+    def register_inner(f):
+        global CONFIGS
+        CONFIGS[name] = f()
+        return f
+    return register_inner
+
 
 def build_trainer_config(config):
     """Obtain rllib config from tune config (populate additional fields)."""
@@ -184,6 +195,7 @@ def get_default_config():
 
     return config
 
+
 def update_config_external_template(config):
     """Set trainer to external."""
 
@@ -216,6 +228,7 @@ def update_config_external_template(config):
     return config
 
 
+@register_config(name='coarse')
 def get_config_coarse():
     """Search hyperparams in a wide range."""
     # try changing learning rate
@@ -246,6 +259,7 @@ def get_config_coarse():
     return config
 
 
+@register_config(name='fine')
 def get_config_fine():
     """Search in a smaller range."""
     # try changing learning rate
@@ -266,6 +280,7 @@ def get_config_fine():
     return config
 
 
+@register_config(name='fine2')
 def get_config_fine2():
     """Search in a smaller range, second set."""
     # try changing learning rate
@@ -291,6 +306,7 @@ def get_config_fine2():
     return config
 
 
+@register_config(name='best')
 def get_config_best():
     """Run with best hyperparams."""
     # try changing learning rate
@@ -316,6 +332,7 @@ def get_config_best():
     return config
 
 
+@register_config(name='linear')
 def get_config_linear():
     """Trying the linear policy."""
     # try changing learning rate
@@ -348,6 +365,7 @@ def get_config_linear():
     return config
 
 
+@register_config(name='sizes')
 def get_config_sizes():
     """Trying different network sizes."""
     # try changing learning rate
@@ -381,6 +399,7 @@ def get_config_sizes():
     return config
 
 
+@register_config(name='es')
 def get_config_es():
     """Run with random search (evolutionary strategies)."""
     # try changing learning rate
@@ -404,6 +423,7 @@ def get_config_es():
     return config
 
 
+@register_config(name='external_test')
 def get_config_test_external():
     """Run with training via stable baselines."""
     # try changing learning rate
@@ -426,6 +446,8 @@ def get_config_test_external():
     config['num_envs_per_worker'] = 2
     return config
 
+
+@register_config(name='external_cartpole')
 def get_config_cartpole_external():
     """Run with training via stable baselines."""
     # try changing learning rate
@@ -453,6 +475,7 @@ def get_config_cartpole_external():
     return config
 
 
+@register_config(name='test')
 def get_config_test():
     """Do a test run."""
     # try changing learning rate
@@ -483,6 +506,7 @@ def get_config_test():
     return config
 
 
+@register_config(name='sample_speed')
 def get_config_sample_speed():
     """Search for best num_workers/num_envs configuration."""
     # try changing learning rate
@@ -515,6 +539,7 @@ def get_config_sample_speed():
     return config
 
 
+@register_config(name='test_appo')
 def get_config_test_appo():
     """One trial APPO."""
     # try changing learning rate
@@ -540,6 +565,7 @@ def get_config_test_appo():
     return config
 
 
+@register_config(name='test_burst')
 def get_config_test_bursts():
     """Run with bursts (small test run)."""
     # try changing learning rate
@@ -559,6 +585,8 @@ def get_config_test_bursts():
     config['_burst_size'] = 2
     return config
 
+
+@register_config(name='bursts_exp_sb')
 def get_config_bursts_exp_sb():
     """Run with bursts (small test run)."""
     # try changing learning rate
@@ -573,7 +601,6 @@ def get_config_bursts_exp_sb():
     config['_burst_exponent'] = tune.loguniform(1.1, 2, 2)
     config['_policies'] = [None, "from_scratch_sb", "pretrained"]
 
-
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
 
     config['_call']['stop'] = {'timesteps_total': steps}
@@ -583,6 +610,7 @@ def get_config_bursts_exp_sb():
     return config
 
 
+@register_config(name='victim_recover')
 def get_config_victim_recover():
     """Victim recovers from a pre-trained adversary."""
     # try changing learning rate
@@ -608,6 +636,8 @@ def get_config_victim_recover():
     config['_call']['num_samples'] = 4
     return config
 
+
+@register_config(name='victim_recover_sb')
 def get_config_victim_recover_sb():
     """Victim recovers from a pre-trained adversary."""
     # try changing learning rate
@@ -628,7 +658,7 @@ def get_config_victim_recover_sb():
     return config
 
 
-
+@register_config(name='burst')
 def get_config_bursts():
     """Grid search with bursts."""
     # try changing learning rate
@@ -655,6 +685,7 @@ def get_config_bursts():
     return config
 
 
+@register_config(name='bursts_exp')
 def get_config_bursts_exp():
     """Hyperparam tuning with bursts."""
     # try changing learning rate
@@ -694,15 +725,16 @@ def get_policies_all(config, n_policies, obs_space, act_space, policy_template="
                 }
     return policies
 
+
 def get_policies_withnormal_sb(config, n_policies, obs_space, act_space, policy_template="player_%d%s"):
     """Get a policy dictionary, both pretrained normal and adversarial opponents."""
     which_arr = {1:
                      {"from_scratch_sb": "_pretrained_adversary_sb",
                       "pretrained": "_pretrained_sb",
-                     },
+                      },
                  2:
                      {"pretrained": "_pretrained_sb"}
-                }
+                 }
     policies = {policy_template % (i, which_v): get_agent_config(agent_id=i, which=which_k, config=config,
                                                                  obs_space=obs_space, act_space=act_space)
                 for i in range(1, 1 + n_policies)
@@ -712,6 +744,7 @@ def get_policies_withnormal_sb(config, n_policies, obs_space, act_space, policy_
         print("Policies")
         print(policies.keys())
     return policies
+
 
 def select_policy_opp_normal_and_adv_sb(agent_id, config, do_print=False):
     """Select policy at execution, normal-adversarial opponents."""
@@ -727,7 +760,8 @@ def select_policy_opp_normal_and_adv_sb(agent_id, config, do_print=False):
         return "player_2_pretrained_sb"
 
 
-def get_policies_pbt(config, n_policies, obs_space, act_space, policy_template="player_%d%s", from_scratch_name="from_scratch"):
+def get_policies_pbt(config, n_policies, obs_space, act_space, policy_template="player_%d%s",
+                     from_scratch_name="from_scratch"):
     """Get a policy dictionary, population-based training."""
     n_adversaries = config['_n_adversaries']
     which_arr = {1:
@@ -776,11 +810,14 @@ def select_policy_opp_normal_and_adv(agent_id, config, do_print=False):
         # pretrained victim
         return "player_2_pretrained"
 
+
+@register_config(name='victim_recover_withnormal_sb')
 def get_config_victim_recover_withnormal_sb():
     config = get_default_config()
     config = update_config_external_template(config)
 
-    config['_checkpoint_restore_policy'] = {'player_1_pretrained_adversary_sb': './results/checkpoint-adv-external-3273-player_1.pkl'}
+    config['_checkpoint_restore_policy'] = {
+        'player_1_pretrained_adversary_sb': './results/checkpoint-adv-external-3273-player_1.pkl'}
 
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_2_pretrained_sb']
@@ -789,7 +826,7 @@ def get_config_victim_recover_withnormal_sb():
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
     config['_call']['name'] = "adversarial_tune_recover_withnormal_sb"
     config['_call']['num_samples'] = 5
- 
+
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config['_select_policy'] = select_policy_opp_normal_and_adv_sb
     config['_get_policies'] = get_policies_withnormal_sb
@@ -797,6 +834,7 @@ def get_config_victim_recover_withnormal_sb():
     return config
 
 
+@register_config(name='bursts_exp_withnormal')
 def get_config_bursts_normal():
     """One trial with bursts + training against the normal opponent as well."""
     # try changing learning rate
@@ -832,6 +870,7 @@ def get_config_bursts_normal():
     return config
 
 
+@register_config(name='bursts_exp_withnormal_pbt')
 def get_config_bursts_normal_pbt():
     """One trial with bursts and PBT."""
     # try changing learning rate
@@ -868,6 +907,8 @@ def get_config_bursts_normal_pbt():
     config['_get_policies'] = get_policies_pbt
     return config
 
+
+@register_config(name='bursts_exp_withnormal_1adv_sb')
 def get_config_bursts_normal_1adv_sb():
     """One trial with bursts and PBT, 1 adversary."""
     # try changing learning rate
@@ -880,9 +921,9 @@ def get_config_bursts_normal_1adv_sb():
     config['_train_steps'] = 10000
     config['_eval_steps'] = 1500
     config['_burst_exponent'] = tune.loguniform(1, 2.2, 2)
-    config['_p_normal'] = 0.5#tune.uniform(0.1, 0.9)
-    config['_n_adversaries'] = 1#tune_int(tune.uniform(1, 10))
-    #config['entropy_coeff'] = tune.uniform(0, 0.02)
+    config['_p_normal'] = 0.5  # tune.uniform(0.1, 0.9)
+    config['_n_adversaries'] = 1  # tune_int(tune.uniform(1, 10))
+    # config['entropy_coeff'] = tune.uniform(0, 0.02)
 
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
 
@@ -898,6 +939,8 @@ def get_config_bursts_normal_1adv_sb():
     config['_do_not_train_policies'] = ['player_1_pretrained']
     return config
 
+
+@register_config(name='bursts_exp_withnormal_pbt_sb')
 def get_config_bursts_normal_pbt_sb():
     """One trial with bursts and PBT."""
     # try changing learning rate
@@ -911,7 +954,7 @@ def get_config_bursts_normal_pbt_sb():
     config['_eval_steps'] = 1500
     config['_burst_exponent'] = tune.loguniform(1, 2.2, 2)
     config['_p_normal'] = tune.uniform(0.1, 0.9)
-    config['_n_adversaries'] = 5#tune_int(tune.uniform(1, 10))
+    config['_n_adversaries'] = 5  # tune_int(tune.uniform(1, 10))
     config['entropy_coeff'] = tune.uniform(0, 0.02)
 
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
@@ -935,31 +978,6 @@ def get_trainer(config):
     rl_config = build_trainer_config(config=config)
     return TRAINERS[config['_trainer']](config=rl_config)
 
-
-CONFIGS = {'test': get_config_test(),
-           'coarse': get_config_coarse(),
-           'fine': get_config_fine(),
-           'test_burst': get_config_test_bursts(),
-           'burst': get_config_bursts(),
-           'test_appo': get_config_test_appo(),
-           'victim_recover': get_config_victim_recover(),
-           'victim_recover_sb': get_config_victim_recover_sb(),
-           'fine2': get_config_fine2(),
-           'best': get_config_best(),
-           'es': get_config_es(),
-           'linear': get_config_linear(),
-           'sizes': get_config_sizes(),
-           'bursts_exp': get_config_bursts_exp(),
-           'bursts_exp_sb': get_config_bursts_exp_sb(),
-           'bursts_exp_withnormal': get_config_bursts_normal(),
-           'bursts_exp_withnormal_pbt': get_config_bursts_normal_pbt(),
-           'bursts_exp_withnormal_pbt_sb': get_config_bursts_normal_pbt_sb(),
-           'bursts_exp_withnormal_1adv_sb': get_config_bursts_normal_1adv_sb(),
-           'victim_recover_withnormal_sb': get_config_victim_recover_withnormal_sb(),
-           'external_test': get_config_test_external(),
-           'external_cartpole': get_config_cartpole_external(),
-           'sample_speed': get_config_sample_speed(),
-           }
 
 TRAINERS = {'PPO': PPOTrainer,
             'APPO': APPOTrainer,
