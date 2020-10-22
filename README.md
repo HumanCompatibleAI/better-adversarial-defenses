@@ -7,9 +7,21 @@ In this repository:
 3. Victim is trained against multiple adversaries as well as the normal opponent ('population-based training')
 4. Stable Baselines are connected to rllib to train by sampling with rllib and optimizing with Stable Baslines
 
+Bursts training: (left) training opponents ('normal' pre-trained, adversary trained from scratch, victim policy) in an alternating way (middle) 'burst' size (right) win rate<br />
+<img height="200" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/which_and_burst_size.png" /> <img height="200" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/win_rate.png" />
 
+Bursts training: (left) mean reward for agents, (right) value loss for agents<br />
+<img height="300" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/reward_mean.png" /> <img height="300" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/value_loss.png" />
 
 ## Setup
+### Using Docker
+1. Install Docker and git
+2. Clone the repository: `git clone https://github.com/HumanCompatibleAI/better-adversarial-defenses.git`
+3. Build the Docker image: `docker build -t ap_rllib better-adversarial-defenses`
+3. Run tests: `docker container run -it ap_rllib`
+4. Run shell: `docker container run -it ap_rllib /bin/bash`
+
+### Using Ubuntu
 Assuming Ubuntu Linux distribution or a compatible one.
 
 Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
@@ -17,6 +29,7 @@ Tested in Ubuntu 18.04.5 LTS and WSL. GPU is not required for the project.
 Full installation can be found in `Dockerfile`.
 
 1. Install miniconda
+2. `git clone --recursive https://github.com/HumanCompatibleAI/better-adversarial-defenses.git`
 2. Create environments from files `adv-tf1.yml` and `adv-tf2.yml` (tf1 is used for stable baselines, and tf2 is used for rllib)
 3. Install MuJoCo 1.13. On headless setups, install Xvfb
 4. Install mongodb and create a database `chai`
