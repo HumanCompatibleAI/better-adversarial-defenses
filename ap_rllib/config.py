@@ -31,7 +31,7 @@ def build_trainer_config(config):
     config = deepcopy(config)
     config['_all_policies'] = sorted(policies.keys())
 
-    if config['_update_withpolicies']:
+    if config['_update_withpolicies'] and '_iteration' in config:
         config = config['_update_withpolicies'](config, iteration=config['_iteration'])
 
     config1 = deepcopy(config)

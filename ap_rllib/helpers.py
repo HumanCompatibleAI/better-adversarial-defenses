@@ -183,9 +183,9 @@ def get_df_from_logdir(logdir, do_tqdm=True):
 def fill_which_training(rdf, policies):
     """Fill data on which player is being trained."""
     which_training_arr = []
-    for _, line in rdf.iterrows():
-        currently_training = set([p for p in policies if not np.isnan(line[f"info/learner/{p}/policy_loss"])])
-        assert len(currently_training) == 1
+    for i, line in rdf.iterrows():
+        currently_training = set([p for p in policies if not np.isnan(line.get(f"info/learner/{p}/policy_loss", np.nan))])
+        assert len(currently_training) == 1, f"Training both at step {i}: {currently_training}"
         which_training = int(list(currently_training)[0].split('_')[1])
         which_training_arr.append(which_training)
 
