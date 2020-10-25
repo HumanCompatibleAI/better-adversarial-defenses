@@ -8,11 +8,12 @@ from ap_rllib_experiment_analysis.analysis_helpers import get_df_from_logdir
 DEFAULT_PATH = os.path.join(os.path.expanduser('~'), 'ray_results')
 
 
-def get_checkpoint_list():
+def get_checkpoint_list(path=DEFAULT_PATH, ask_path=True):
     """Get a list of checkpoints in a directory (with manual selection using Dialog)."""
     d = Dialog()
-    code, path = d.inputbox("Where to look for checkpoints?", init=DEFAULT_PATH, width=120)
-    assert code == 'ok', f"Invalid response: {code} {path}"
+    if ask_path:
+        code, path = d.inputbox("Where to look for checkpoints?", init=path, width=120)
+        assert code == 'ok', f"Invalid response: {code} {path}"
     items = os.listdir(path)
 
     print("Reading data...")
@@ -35,7 +36,6 @@ def get_checkpoint_list():
 
     code, tags = d.checklist("Which checkpoints do you want to use?",
                              choices=items_with_descr,
-                             title="Do you prefer ham or spam?",
                              width=200, height=20)
 
     checkpoints = [last_checkpoint[t] for t in tags]

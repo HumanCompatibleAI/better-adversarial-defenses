@@ -47,9 +47,18 @@ def train_iteration_process(pickle_path):
     # doing it by copying weights only
     # so that iteration number is 0 instead of the saved one
     if '_checkpoint_restore' in config and iteration == 0:
-        trainer_1 = get_trainer(config)
-        trainer_1.restore(config['_checkpoint_restore'])
-        trainer.set_weights(deepcopy(trainer_1.get_weights()))
+        if '_restore_only' in config and '_foreign_config' in config:
+
+            trainer_1 = get_trainer(get_config_by_name(config['_foreign_config']))
+            trainer_1.restore(config['_checkpoint_restore'])
+
+            for policy_source, policy_target in config['_restore_only']:
+                trainer.get_policy(policy_target).set_weights(trainer_1.get_policy(policy_source))
+                print(f"Set weights for policy {policy_target} from {config['_checkpoint_restore']}/{policy_source}")
+        else:
+            trainer_1 = get_trainer(config)
+            trainer_1.restore(config['_checkpoint_restore'])
+            trainer.set_weights(deepcopy(trainer_1.get_weights()))
 
     # restoring weights for specific policies
     if '_checkpoint_restore_policy' in config and iteration == 0:

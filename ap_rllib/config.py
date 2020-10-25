@@ -1,21 +1,23 @@
+import os
 from copy import deepcopy
 from functools import partial
 
 import numpy as np
+from dialog import Dialog
 from ray import tune
 from ray.rllib.agents.es import ESTrainer, ESTFPolicy
 from ray.rllib.agents.ppo import APPOTrainer
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
+from ray.tune.logger import pretty_print
 from ray.tune.schedulers import ASHAScheduler
 
+from ap_rllib.ask_checkpoints import get_checkpoint_list, DEFAULT_PATH
+from ap_rllib.bursts import bursts_config_increase, bursts_config
+from ap_rllib.helpers import sample_int, tune_int
 from frankenstein.remote_trainer import ExternalTrainer
 from gym_compete_rllib import create_env
-from ap_rllib.helpers import sample_int, tune_int
-from ray.tune.logger import pretty_print
-from ap_rllib.bursts import bursts_config_increase, bursts_config
-from ap_rllib.ask_checkpoints import get_checkpoint_list
 
 CONFIGS = {}
 
@@ -29,6 +31,22 @@ def get_config_by_name(name):
         return CONFIGS[name]
     else:
         raise TypeError(f"Wrong config {name}: {type(CONFIGS[name])}")
+
+
+def select_config():
+    """Get config name (ask the user)."""
+    d = Dialog()
+    choices = []
+    for c_key, config in CONFIGS.items():
+        if isinstance(config, dict):
+            descr = "name: " + config['_call']['name']
+        else:
+            descr = "interactive"
+        choices.append((c_key, descr))
+    print(choices)
+    code, tag = d.menu("Select configuration:", choices=choices, width=100)
+    assert code == 'ok', f"Invalid response: {code} {tag}"
+    return tag
 
 
 def register_config(name, online=False):
@@ -988,7 +1006,9 @@ def get_config_defense_eval_sb():
     config = get_default_config()
     config = update_config_external_template(config)
 
-    config['_checkpoint_list'] = get_checkpoint_list()
+    config['_foreign_config'] = select_config()
+    conf_name = CONFIGS[config['_foreign_config']]['_call']['name']
+    config['_checkpoint_list'] = get_checkpoint_list(path=os.path.join(DEFAULT_PATH, conf_name), ask_path=False)
     config['_checkpoint_restore'] = tune.grid_search(config['_checkpoint_list'])
 
     # ['humanoid_blocker', 'humanoid'],
