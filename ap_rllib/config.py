@@ -998,7 +998,7 @@ def get_config_defense_eval_sb():
 
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
     config['_call']['name'] = "adversarial_tune_eval_sb"
-    config['_call']['num_samples'] = 5
+    config['_call']['num_samples'] = 2
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
 
