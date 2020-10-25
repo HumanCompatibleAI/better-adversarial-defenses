@@ -183,3 +183,4 @@ dependencies:
     - webencodings==0.5.1
     - widgetsnbextension==3.5.1
     - yarl==1.5.1
+    - pythondialog==3.5.1
