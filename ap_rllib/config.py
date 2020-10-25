@@ -15,15 +15,27 @@ from gym_compete_rllib import create_env
 from ap_rllib.helpers import sample_int, tune_int
 from ray.tune.logger import pretty_print
 from ap_rllib.bursts import bursts_config_increase, bursts_config
+from ap_rllib.ask_checkpoints import get_checkpoint_list
 
 CONFIGS = {}
 
+def get_config_by_name(name):
+    """Get configuration for training by name."""
+    if name not in CONFIGS:
+        raise ValueError(f"Wrong config name: {name}, possible names: {CONFIGS.keys()}")
+    elif callable(CONFIGS[name]):
+        return CONFIGS[name]()
+    elif isinstance(CONFIGS[name], dict):
+        return CONFIGS[name]
+    else:
+        raise TypeError(f"Wrong config {name}: {type(CONFIGS[name])}")
 
-def register_config(name):
+
+def register_config(name, online=False):
     """Register configuration."""
     def register_inner(f):
         global CONFIGS
-        CONFIGS[name] = f()
+        CONFIGS[name] = f if online else f()
         return f
     return register_inner
 
@@ -969,6 +981,25 @@ def get_config_bursts_normal_pbt_sb():
     config['_select_policy'] = select_policy_opp_normal_and_adv_pbt
     config['_get_policies'] = partial(get_policies_pbt, from_scratch_name="from_scratch_sb")
     config['_do_not_train_policies'] = ['player_1_pretrained']
+    return config
+
+@register_config(name='defense_eval_interactive_sb', online=True)
+def get_config_defense_eval_sb():
+    config = get_default_config()
+    config = update_config_external_template(config)
+
+    config['_checkpoint_list'] = get_checkpoint_list()
+    config['_checkpoint_restore'] = tune.grid_search(config['_checkpoint_list'])
+
+    # ['humanoid_blocker', 'humanoid'],
+    config['_train_policies'] = ['player_1']
+    config['_policies'] = [None, "from_scratch_sb", "pretrained"]
+    config['_train_steps'] = 9999999999
+
+    config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
+    config['_call']['name'] = "adversarial_tune_eval_sb"
+    config['_call']['num_samples'] = 5
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
 
 

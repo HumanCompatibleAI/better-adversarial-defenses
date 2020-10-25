@@ -1,5 +1,4 @@
 from ap_rllib.make_video import make_video, parser
-from ap_rllib.config import CONFIGS
 from ap_rllib.helpers import flatten_dict_keys
 import ray
 import shutil
@@ -14,6 +13,7 @@ import pandas as pd
 
 
 def get_last_checkpoint(config_name):
+    from ap_rllib.config import CONFIGS
     """Get last checkpoint for an experiment."""
     home = expanduser("~")
     trial_name = CONFIGS[config_name]['_call']['name']

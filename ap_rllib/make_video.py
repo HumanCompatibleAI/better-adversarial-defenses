@@ -24,7 +24,7 @@ def make_video(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     from gym_compete_rllib import created_envs
     from ap_rllib.train import ray_init
-    from ap_rllib.config import build_trainer_config
+    from ap_rllib.config import build_trainer_config, get_config_by_name
     from ap_rllib import config
     from ap_rllib.config import TRAINERS
     from tqdm import tqdm
@@ -34,8 +34,7 @@ def make_video(args):
 
     os.environ['DISPLAY'] = args.display
 
-    assert args.config in config.CONFIGS, f"Wrong config {args.config}, options are {config.CONFIGS.keys()}"
-    config = config.CONFIGS[args.config]
+    config = get_config_by_name(args.config)
 
     # making config simpler
     config['_train_policies'] = []

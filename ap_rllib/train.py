@@ -11,7 +11,7 @@ from copy import deepcopy
 from ray.tune.logger import pretty_print
 from sacred.observers import MongoObserver
 
-from ap_rllib.config import CONFIGS, get_trainer
+from ap_rllib.config import CONFIGS, get_trainer, get_config_by_name
 from ap_rllib.helpers import dict_to_sacred, unlink_ignore_error, ray_init
 from ray import tune
 
@@ -168,8 +168,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
 
 def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False):
     """Call tune."""
-    assert config_name in CONFIGS, "Wrong config %s" % str(list(CONFIGS.keys()))
-    config = CONFIGS[config_name]
+    config = get_config_by_name(config_name)
     cluster_info = ray_init(tmp_dir=tmp_dir)
     tf.keras.backend.set_floatx('float32')
 
