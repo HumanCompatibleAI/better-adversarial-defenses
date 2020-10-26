@@ -15,7 +15,7 @@ RUN apt-get update -q \
 	libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev \
 	libswscale-dev libtool mongodb-server net-tools patchelf \
 	pkg-config rsync screen ca-certificates \
-	subversion sudo unzip vim wget xvfb \
+	subversion sudo unzip vim wget xvfb dialog \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
