@@ -33,18 +33,19 @@ def get_config_by_name(name):
         raise TypeError(f"Wrong config {name}: {type(CONFIGS[name])}")
 
 
-def select_config():
+def select_config(title=None):
     """Get config name (ask the user)."""
     d = Dialog()
     choices = []
-    for c_key, config in CONFIGS.items():
+    for c_key in sorted(CONFIGS.keys()):
+        config = CONFIGS[c_key]
         if isinstance(config, dict):
             descr = "name: " + config['_call']['name']
         else:
             descr = "interactive"
         choices.append((c_key, descr))
     print(choices)
-    code, tag = d.menu("Select configuration:", choices=choices, width=100)
+    code, tag = d.menu("Select configuration:", choices=choices, width=100, title=title)
     assert code == 'ok', f"Invalid response: {code} {tag}"
     return tag
 
@@ -1006,8 +1007,9 @@ def get_config_defense_eval_sb():
     config = get_default_config()
     config = update_config_external_template(config)
 
-    config['_foreign_config'] = select_config()
+    config['_foreign_config'] = select_config(title="Defense training config")
     conf_name = CONFIGS[config['_foreign_config']]['_call']['name']
+    config['_restore_only'] = [('player_2_pretrained', 'player_2')]
     config['_checkpoint_list'] = get_checkpoint_list(path=os.path.join(DEFAULT_PATH, conf_name), ask_path=False)
     config['_checkpoint_restore'] = tune.grid_search(config['_checkpoint_list'])
 

@@ -11,7 +11,7 @@ from copy import deepcopy
 from ray.tune.logger import pretty_print
 from sacred.observers import MongoObserver
 
-from ap_rllib.config import CONFIGS, get_trainer, get_config_by_name
+from ap_rllib.config import CONFIGS, get_trainer, get_config_by_name, select_config
 from ap_rllib.helpers import dict_to_sacred, unlink_ignore_error, ray_init
 from ray import tune
 
@@ -48,12 +48,18 @@ def train_iteration_process(pickle_path):
     # so that iteration number is 0 instead of the saved one
     if '_checkpoint_restore' in config and iteration == 0:
         if '_restore_only' in config and '_foreign_config' in config:
-
-            trainer_1 = get_trainer(get_config_by_name(config['_foreign_config']))
+            foreign_config = get_config_by_name(config['_foreign_config'])
+            foreign_config['_verbose'] = False
+            trainer_1 = get_trainer(foreign_config)
             trainer_1.restore(config['_checkpoint_restore'])
 
             for policy_source, policy_target in config['_restore_only']:
-                trainer.get_policy(policy_target).set_weights(trainer_1.get_policy(policy_source))
+                source_keys = trainer_1.get_weights().keys()
+                assert policy_source in source_keys, f"Wrong source key: {policy_source} {source_keys}"
+                w = trainer_1.get_policy(policy_source).get_weights()
+                target_keys = trainer.get_weights().keys()
+                assert policy_target in target_keys, f"Wrong target key: {policy_target} {target_keys}"
+                trainer.get_policy(policy_target).set_weights(w)
                 print(f"Set weights for policy {policy_target} from {config['_checkpoint_restore']}/{policy_source}")
         else:
             trainer_1 = get_trainer(config)
@@ -218,9 +224,11 @@ if __name__ == '__main__':
 
     # this option runs tune trials
     elif args.tune:
-        run_tune(config_name=args.tune, config_override=args.config_override,
-                 tmp_dir=args.tmp_dir, verbose=args.verbose)
+        config = args.tune
     else:
-        parser.print_help()
+        config = select_config(title="Select main configuration to run")
+
+    run_tune(config_name=config, config_override=args.config_override,
+             tmp_dir=args.tmp_dir, verbose=args.verbose)
 
     sys.exit(0)
