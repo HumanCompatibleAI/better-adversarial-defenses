@@ -24,7 +24,6 @@ def get_checkpoint_list(path=DEFAULT_PATH, ask_path=True):
             df = get_df_from_logdir(os.path.join(path, item), do_tqdm=False)
             if len(df) <= 1:
                 continue
-            print(df.columns)
             descr = f"Training iterations: {len(df)}"
             last_checkpoint[item] = df.iloc[-1].checkpoint_rllib
             items_with_descr.append((item, descr, True))
