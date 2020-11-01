@@ -221,6 +221,7 @@ if __name__ == '__main__':
     # this option runs 1 training iteration
     if args.from_pickled_config:
         train_iteration_process(pickle_path=args.from_pickled_config)
+        config = None
 
     # this option runs tune trials
     elif args.tune:
@@ -228,7 +229,9 @@ if __name__ == '__main__':
     else:
         config = select_config(title="Select main configuration to run")
 
-    run_tune(config_name=config, config_override=args.config_override,
-             tmp_dir=args.tmp_dir, verbose=args.verbose)
+
+    if config is not None:
+        run_tune(config_name=config, config_override=args.config_override,
+                 tmp_dir=args.tmp_dir, verbose=args.verbose)
 
     sys.exit(0)
