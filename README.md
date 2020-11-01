@@ -14,6 +14,8 @@ Bursts training: (left) mean reward for agents, (right) value loss for agents<br
 <img height="300" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/reward_mean.png" /> <img height="300" src="https://github.com/HumanCompatibleAI/better-adversarial-defenses/blob/master/results/bursts_pbt_1adv/value_loss.png" />
 
 ## Setup
+[![Build Status](https://travis-ci.com/HumanCompatibleAI/better-adversarial-defenses.svg?branch=master)](https://travis-ci.com/HumanCompatibleAI/better-adversarial-defenses)
+
 ### Using Docker
 1. Install Docker and git
 2. Clone the repository: `git clone https://github.com/HumanCompatibleAI/better-adversarial-defenses.git`
