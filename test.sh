@@ -70,15 +70,17 @@ then
 	conda run -n adv-tf2 python -m ap_rllib.make_video --config external_test --checkpoint $checkpoint --display $DISPLAY --steps 1
 fi
 
+sleep 5
+
 # closing the screen session
 echo "Stopping sb server"
-screen -S "sb_server_test" -X kill
+screen -S "sb_server_test" -X kill || true
 screen -S "xvfb_test" -X kill || true
 
 # stopping ray
 echo "Stopping ray and Xvfb"
-conda run -n adv-tf2 ray stop
-pkill -f -9 ray
+conda run -n adv-tf2 ray stop || true
+pkill -f -9 ray || true
 
 # final message
 echo "All tests PASSED!"
