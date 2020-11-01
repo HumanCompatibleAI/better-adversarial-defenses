@@ -11,6 +11,11 @@ then
 	export DISPLAY=:0
 fi
 
+if [ "X$MJKEY_NEW" != "X" ]
+then
+    echo "$MJKEY_NEW" > ~/.mujoco/mjkey.txt
+fi
+
 
 if [ "X$1" != "X--no_mujoco_license" ]
 then
