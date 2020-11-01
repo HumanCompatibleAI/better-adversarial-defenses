@@ -8,4 +8,4 @@ before_install:
   - docker ps -a
 
 script:
-  - docker run -it chai/better-adversarial-defenses /bin/bash -c "cd /root/better-adversarial-defenses; ./test.sh --no_mujoco_license"
+  - docker run -it chai/better-adversarial-defenses /bin/bash -c "./test.sh --no_mujoco_license"
