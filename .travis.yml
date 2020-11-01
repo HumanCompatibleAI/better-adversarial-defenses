@@ -1,0 +1,11 @@
+language: python
+
+services:
+  - docker
+
+before_install:
+  - docker build -t chai/better-adversarial-defenses .
+  - docker ps -a
+
+script:
+  - docker run -it chai/better-adversarial-defenses /bin/bash -c "cd /root/better-adversarial-defenses; ./test.sh --no_mujoco_license"
