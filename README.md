@@ -30,13 +30,23 @@ In this repository:
    `$ docker run -it humancompatibleai/better-adversarial-defenses /bin/bash`
 
 ### A bit harder: build a Docker image
+<details><summary>Click to open</summary>
+<p>
+   
 1. Install [Docker](https://www.docker.com/) and [git](https://git-scm.com/)
 2. Clone the repository: `$ git clone https://github.com/HumanCompatibleAI/better-adversarial-defenses.git`
 3. Build the Docker image: `$ docker build -t ap_rllib better-adversarial-defenses`
 3. Run tests: `$ docker container run -it ap_rllib`
 4. Run shell: `$ docker container run -it ap_rllib /bin/bash`
+</p>
+</details>
+
+
 
 ### Hard: set up the environment manually
+<details><summary>Click to open</summary>
+<p>
+
 Assuming Ubuntu Linux distribution or a compatible one.
 
 Tested in [Ubuntu](https://ubuntu.com/) 18.04.5 LTS and [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10). GPU is not required for the project.
@@ -56,6 +66,8 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
 6. Having [ray](https://github.com/ray-project/ray) 0.8.6 installed, run `$ python ray/python/ray/setup-dev.py` to patch your ray installation
 7. Install fonts for rendering: `$ conda install -c conda-forge mscorefonts; mkdir ~/.fonts; cp $CONDA_PREFIX/fonts/*.ttf ~/.fonts; fc-cache -f -v`
 8. Install the project: `$ pip install -e .`
+</p>
+</details>
 
 ## How to train
 1. To test the setup with rllilb PPO trainer, run:
@@ -94,7 +106,9 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
 3. We checkpoint the ray trainer and restore it, and run the whole thing in a separate process to circumvent the <a href="https://github.com/ray-project/ray/issues/9964">ray memory leak issue</a>
 
 
-## Files and folders
+## Files and folders structure
+<details><summary>Click to open</summary>
+<p>
 
 Files:
 * [`ap_rllib/train.py`](ap_rllib/train.py) the main train script
@@ -127,3 +141,6 @@ Submodules:
 * [`rlpyt_run.py`](other/rlpyt_run.py) implements training in `YouShallNotPass` with <a href="https://github.com/astooke/rlpyt">rlpyt</a>
 * [`rs.ipynb`](other/rs.ipynb) implements random search with a constant output policy in `YouShallNotPass`
 * [`evolve.ipynb`](other/evolve.ipynb) and [`evolve.py`](other/evolve.ipynb) implement training in `YouShallNotPass` with <a href="https://github.com/CodeReclaimers/neat-python">neat-python</a>
+
+</p>
+</details>
