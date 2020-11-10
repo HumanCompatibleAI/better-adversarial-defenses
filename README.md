@@ -88,8 +88,6 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
      - `--no_video True` will disable video. Use this to evaluate the performance with more episodes faster
 
 
-### Tips and tricks
-
 ## Design choices
 1. We use ray because of its multi-agent support, and thus we have to use TensorFlow 2.0
 2. We use stable baselines for training because we were unable to replicate results with rllib, even with an independent search for hyperparameters.
