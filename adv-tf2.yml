@@ -84,6 +84,7 @@ dependencies:
   - xz=5.2.5=h7b6447c_0
   - zipp=3.3.0=py_0
   - zlib=1.2.11=h7b6447c_3
+  - graphviz=2.40.1=h25d223c_0
   - pip:
     - apply-defaults==0.1.4
     - argon2-cffi==20.1.0
