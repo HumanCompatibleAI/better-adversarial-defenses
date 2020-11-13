@@ -1,3 +1,6 @@
+# ray output
+python-core-worker-*
+
 # openai gym stuff
 openaigym.*.stats.json
 openaigym.*.meta.json
