@@ -1,0 +1,10 @@
+import ap_rllib_experiment_analysis.analysis_helpers
+
+
+get_videos.steps = 2
+get_videos.config = "external_test"
+get_videos.load_normal = False
+
+get_scores.steps = 1# 200
+get_scores.config = "external_test"
+get_scores.load_normal = False

@@ -10,6 +10,7 @@ import json
 import numbers
 import numpy as np
 import pandas as pd
+import gin
 
 
 def get_last_checkpoint(config_name):
@@ -28,6 +29,18 @@ def get_last_checkpoint(config_name):
 def make_video_1(*args, **kwargs):
     return make_video(*args, **kwargs)
 
+def ray_get_tqdm(remaining_ids):
+    """Get results from a list of remote ids, with progress updates."""
+    
+    with tqdm(total=len(remaining_ids)) as pbar:
+        while remaining_ids:
+            ready_ids, remaining_ids_new = ray.wait(remaining_ids)
+            if len(remaining_ids_new) < len(remaining_ids):
+                pbar.update(len(remaining_ids) - len(remaining_ids_new))
+            remaining_ids = remaining_ids_new
+
+    return ray.get(ready_ids)
+
 def make_video_parallel(checkpoints, arguments):
     """Run make_video in parallel.
     
@@ -40,10 +53,11 @@ def make_video_parallel(checkpoints, arguments):
     
     """
     args = [parser.parse_args(['--checkpoint', ckpt, *arguments]) for ckpt in checkpoints]
-    res = [make_video_1.remote(a) for a in args]
-    res = ray.get(res)
-    return res
+    remaining_ids = [make_video_1.remote(a) for a in args]
+    return ray_get_tqdm(remaining_ids)
 
+
+@gin.configurable
 def get_videos(df, steps=2, load_normal=False, display=':0', config=None):
     """Add video column to the dataframe."""
     args = ['--steps', str(steps), '--display', str(display), '--config', str(config)]
@@ -53,6 +67,8 @@ def get_videos(df, steps=2, load_normal=False, display=':0', config=None):
     r = [r['video'] for r in res]
     return r
 
+
+@gin.configurable
 def get_scores(df, steps=200, load_normal=False, config=None):
     """Compute scores w.r.t. all opponents."""
     # computing score with the normal opponent
