@@ -13,34 +13,40 @@ from frankenstein.stable_baselines_external_data import SBPPORemoteData
 from tornado import web
 
 parser = argparse.ArgumentParser(description='Launch the multiprocess stable baselines server.')
-parser.add_argument('--port', metavar='N', default=50001,
+parser.add_argument('--port', type=int, default=50001,
                     help='port to listen on')
+parser.add_argument('--serial', action="store_true", help="Process everything in a single thread")
 
 
 class MultipleWorker(object):
     """Handles multiple workers identified by IDs."""
 
-    def __init__(self):
+    def __init__(self, run_serially=False):
         """Initialize with zero workers."""
         self.workers = set()
         self.kwargs_queues = {}
         self.worker_processes = {}
         assert hasattr(self, '_process_fcn'), "Please implement _process_fcn"
         self._process_init()
+        self.run_serially = run_serially
+
+    def target_process_iteration(self, worker_id):
+        """Process one element from the queue."""
+        kwargs = pickle.loads(self.kwargs_queues[worker_id].get())
+        try:
+            result = (True, self._process_fcn(**kwargs, worker_id=worker_id))
+        except Exception as e:
+            result = (False, traceback.format_exc())
+            print(result[1])
+        fn = kwargs['answer_path']
+        pickle.dump(result, open(fn + "_", 'wb'))
+        shutil.move(fn + "_", fn)
 
     def target_process(self, worker_id):
         """Process to run in each worker."""
         # print("Starting process", worker_id)
         while True:
-            kwargs = pickle.loads(self.kwargs_queues[worker_id].get())
-            try:
-                result = (True, self._process_fcn(**kwargs, worker_id=worker_id))
-            except Exception as e:
-                result = (False, traceback.format_exc())
-                print(result[1])
-            fn = kwargs['answer_path']
-            pickle.dump(result, open(fn + "_", 'wb'))
-            shutil.move(fn + "_", fn)
+            self.target_process_iteration(worker_id)
 
     def _process_init(self):
         """Initialize client code."""
@@ -58,6 +64,10 @@ class MultipleWorker(object):
         else:
             self.workers.add(worker_id)
             self.kwargs_queues[worker_id] = queue()
+            if self.run_serially:
+                return
+
+            # only for parallel execution
             self.worker_processes[worker_id] = multiprocessing.Process(target=self.target_process,
                                                                        kwargs=dict(worker_id=worker_id))
             self.worker_processes[worker_id].start()
@@ -68,6 +78,8 @@ class MultipleWorker(object):
             print("Creating worker", worker_id)
             self.new_worker(worker_id)
         self.kwargs_queues[worker_id].put(pickle.dumps(kwargs))
+        if self.run_serially:
+            self.target_process_iteration(worker_id)
         return True
 
     def __del__(self):
@@ -133,13 +145,13 @@ class MainHandler(web.RequestHandler):
 trainer = None
 
 
-def run_server(port=50001):
+def run_server(port=50001, run_serially=False):
     """Run the RPC server."""
 
     print("Listening on port %d" % port)
 
     global trainer
-    trainer = MultipleWorkerTrainer()
+    trainer = MultipleWorkerTrainer(run_serially=run_serially)
 
     @method
     def process(*args, **kwargs):
@@ -152,4 +164,4 @@ def run_server(port=50001):
 if __name__ == "__main__":
     app = web.Application([(r"/", MainHandler)])
     args = parser.parse_args()
-    run_server(port=args.port)
+    run_server(port=args.port, run_serially=args.serial)
