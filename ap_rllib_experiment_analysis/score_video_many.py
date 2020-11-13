@@ -28,4 +28,4 @@ if __name__ == '__main__':
         write_out(out, "scores")
     if args.video:
         out = get_videos(df)
-        write_out(out, "scores")
+        write_out(out, "videos")

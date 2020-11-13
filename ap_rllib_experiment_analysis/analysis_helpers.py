@@ -32,6 +32,8 @@ def make_video_1(*args, **kwargs):
 def ray_get_tqdm(remaining_ids):
     """Get results from a list of remote ids, with progress updates."""
     
+    orig_ids = remaining_ids
+    
     with tqdm(total=len(remaining_ids)) as pbar:
         while remaining_ids:
             ready_ids, remaining_ids_new = ray.wait(remaining_ids)
@@ -39,7 +41,7 @@ def ray_get_tqdm(remaining_ids):
                 pbar.update(len(remaining_ids) - len(remaining_ids_new))
             remaining_ids = remaining_ids_new
 
-    return ray.get(ready_ids)
+    return ray.get(orig_ids)
 
 def make_video_parallel(checkpoints, arguments):
     """Run make_video in parallel.
