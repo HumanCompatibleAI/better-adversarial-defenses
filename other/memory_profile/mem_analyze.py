@@ -1,4 +1,5 @@
 import json
+import os
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.ticker as ticker
@@ -8,7 +9,7 @@ import argparse
 import inquirer
 
 parser = argparse.ArgumentParser(description="Visualize recorded memory data")
-parser.add_argument('--input', type=str, help="input file (from mem_profile.py)", required=True)
+parser.add_argument('--input', type=str, help="input file (from mem_profile.py)", required=False, default=None)
 parser.add_argument('--max_lines', type=int, help="Maximal number of lines to read", default=-1, required=False)
 parser.add_argument('--customize', help="Select which processes to show", action="store_true")
 
@@ -16,10 +17,31 @@ parser.add_argument('--customize', help="Select which processes to show", action
 prefixes = ["ray::ImplicitFunc", "ray::RolloutWorker"]
 args = parser.parse_args()
 
+input_file = args.input
+if args.input is None:
+    files = sorted(os.listdir())[::-1]
+    files = [x for x in files if x.startswith('mem_out') and x.endswith('.txt')]
+    descrs = []
+    dt_now = datetime.now()
+    for fn in files:
+        _, _, username, ts = fn.split('.')[0].split('_')
+        dt_then = datetime.fromtimestamp(int(ts))
+        delta = dt_now - dt_then
+        descrs.append(f"User {username}, {delta} ago, {dt_then}")
+    questions = [inquirer.List(
+            'file',
+                message="Which file to load?",
+                choices=descrs)]
+    answers = inquirer.prompt(questions)  # returns a dict
+    choice = answers['file']
+    index = descrs.index(choice)
+    fn = files[descrs.index(choice)]
+    input_file = fn
 
 def get_lines():
     """Get lines from the log file as json strings."""
-    f = open(args.input, 'r')
+    global input_file
+    f = open(input_file, 'r')
     for i, line in enumerate(f):
         if args.max_lines > 0 and i > args.max_lines:
             break
@@ -37,6 +59,7 @@ if args.customize:
     answers = inquirer.prompt(questions)  # returns a dict
     prefixes = answers['processes']
 
+
 # maps pid -> details
 processes = {}
 
@@ -52,6 +75,7 @@ for line in get_lines():
 names = {pid: p[-1]['name'] for pid, p in processes.items()}
 
 plt.figure(figsize=(10, 10))
+plt.title(f"Memory usage for {input_file}")
 for pid, p in processes.items():
     plt.plot([x['timestep'] for x in processes[pid]],
         [x['mem_info']['rss'] for x in processes[pid]], label=names[pid])
@@ -59,5 +83,5 @@ plt.legend()
 plt.xlabel('time')
 plt.ylabel('Mem, bytes')
 plt.gca().yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: humanize.naturalsize(x)))
-plt.savefig(args.input + '.png', bbox_inches='tight')
+plt.savefig(input_file + '.png', bbox_inches='tight')
 plt.show()

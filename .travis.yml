@@ -1,0 +1,11 @@
+language: python
+
+services:
+  - docker
+
+before_install:
+  - docker build -t chai/better-adversarial-defenses .
+  - docker ps -a
+
+script:
+  - docker run -it chai/better-adversarial-defenses /bin/bash -c "export MJKEY_NEW=\"$MJKEY_NEW\"; if [ \"X$MJKEY_NEW\" == \"X\" ]; then echo 'No MuJoCo key found'; ./test.sh --no_mujoco_license; else echo 'MuJoCo key found'; ./test.sh;fi"
