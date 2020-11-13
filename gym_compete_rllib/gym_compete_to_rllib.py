@@ -2,6 +2,7 @@ import datetime
 import gym
 import numpy as np
 import tensorflow as tf
+tf.compat.v1.enable_eager_execution()
 import uuid
 import os
 
@@ -232,12 +233,18 @@ class KerasModelModel(TFModelV2):
         self.policy_net = policy_net
         self.value_net = value_net
         self.register_variables(policy_net.variables + value_net.variables)
+        assert tf.executing_eagerly()
+
+    # signigicant speed-up!
+    @tf.function
+    def _forward_pol_val(self, obs):
+        model_out = tf.cast(self.policy_net(obs), tf.float32)
+        value_out = tf.cast(self.value_net(obs), tf.float32)[:, 0]
+        return model_out, value_out
 
     def forward(self, input_dict, state, seq_lens):
         obs = input_dict["obs"]
-        model_out = tf.cast(self.policy_net(obs), tf.float32)
-        self._value_out = tf.cast(self.value_net(obs), tf.float32)[:, 0]
-        self._value_out = self._value_out
+        model_out, self._value_out = self._forward_pol_val(obs)
         return model_out, state
 
     def value_function(self):
