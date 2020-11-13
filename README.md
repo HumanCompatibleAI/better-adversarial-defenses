@@ -83,6 +83,10 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
    * Some specifig configurations:
      - `--tune external_cartpole` runs training in InvertedPendulum, using Stable Baselines PPO implementation.
        * Before running, launch the Stable Baselines server `(adv-tf1) $ python -m frankenstein.stable_baselines_server`
+          - By-default, each policy is trained in a separate thread, so that environment data collection resumes as soon as possible
+          - However, this increases the number of threads significantly in case of PBT and many parallel tune trials.
+          - If the number of threads is too high, the `--serial` option disables multi-threaded training in Stable Baselines Server
+          - The overhead is not that significant, as training finishes extremely quickly compared to data collection
      - `--tune bursts_exp_withnormal_pbt_sb` will run training with Stable Baselines + Bursts + Normal opponent included + PBT (multiple adversaries)
    * `--verbose` enables some additional output
    * If you want to quickly iterate with your config (use smaller batch size and no remote workers), pass an option to the trainer
