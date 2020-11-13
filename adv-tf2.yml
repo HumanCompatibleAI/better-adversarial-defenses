@@ -184,3 +184,6 @@ dependencies:
     - widgetsnbextension==3.5.1
     - yarl==1.5.1
     - pythondialog==3.5.1
+    - gin-config==0.3.0
+    - graphviz==0.14.2
+    - colour==0.1.5
