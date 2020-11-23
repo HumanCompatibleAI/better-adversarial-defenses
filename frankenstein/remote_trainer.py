@@ -21,6 +21,8 @@ from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, MultiA
 from ap_rllib.helpers import filter_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
 from frankenstein.remote_communicator import RemoteHTTPPickleCommunicator
 from gym_compete_rllib.load_gym_compete_policy import nets_to_weights, load_weights_from_vars
+
+# the function that does the training
 from frankenstein.remote_trainer_with_communicator import train_external
 
 

@@ -99,6 +99,6 @@ class SBPPORemoteData(object):
         metrics = self.logged_data[-1]
 
         # clearing the buffer to free memory
-        self.logged_data = []
+        self.logged_data.clear()
         
         return metrics

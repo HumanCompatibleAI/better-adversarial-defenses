@@ -21,6 +21,26 @@ from gym_compete_rllib import create_env
 
 CONFIGS = {}
 
+def get_trainer(config):
+    """Get trainer from config."""
+    # creating rllib config
+    rl_config = build_trainer_config(config=config)
+    return TRAINERS[config['_trainer']](config=rl_config)
+
+
+# RLLib trainers
+TRAINERS = {'PPO': PPOTrainer,
+            'APPO': APPOTrainer,
+            'ES': ESTrainer,
+            'External': ExternalTrainer}
+
+# RLLib policy map
+POLICIES = {'PPO': PPOTFPolicy,
+            'APPO': AsyncPPOTFPolicy,
+            'ES': ESTFPolicy,
+            'External': PPOTFPolicy}
+
+
 def get_config_by_name(name):
     """Get configuration for training by name."""
     if name not in CONFIGS:
@@ -1024,20 +1044,3 @@ def get_config_defense_eval_sb():
     config['_call']['num_samples'] = 2
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
-
-
-def get_trainer(config):
-    """Get trainer from config."""
-    # creating rllib config
-    rl_config = build_trainer_config(config=config)
-    return TRAINERS[config['_trainer']](config=rl_config)
-
-
-TRAINERS = {'PPO': PPOTrainer,
-            'APPO': APPOTrainer,
-            'ES': ESTrainer,
-            'External': ExternalTrainer}
-POLICIES = {'PPO': PPOTFPolicy,
-            'APPO': AsyncPPOTFPolicy,
-            'ES': ESTFPolicy,
-            'External': PPOTFPolicy}

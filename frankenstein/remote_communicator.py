@@ -1,3 +1,5 @@
+"""Send jobs via JSON RPC and get results via pickle."""
+
 from abc import ABC
 from jsonrpcclient.clients.http_client import HTTPClient
 import pickle
