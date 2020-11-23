@@ -46,11 +46,16 @@ def get_config_by_name(name):
     if name not in CONFIGS:
         raise ValueError(f"Wrong config name: {name}, possible names: {CONFIGS.keys()}")
     elif callable(CONFIGS[name]):
-        return CONFIGS[name]()
+        config = CONFIGS[name]()
     elif isinstance(CONFIGS[name], dict):
-        return CONFIGS[name]
+        config = CONFIGS[name]
     else:
         raise TypeError(f"Wrong config {name}: {type(CONFIGS[name])}")
+        
+    # setting the Tune Run name attribute
+    config['_call']['name'] = name
+    
+    return config
 
 
 def select_config(title=None):
@@ -60,7 +65,7 @@ def select_config(title=None):
     for c_key in sorted(CONFIGS.keys()):
         config = CONFIGS[c_key]
         if isinstance(config, dict):
-            descr = "name: " + config['_call']['name']
+            descr = "tune run name: " + c_key
         else:
             descr = "interactive"
         choices.append((c_key, descr))
@@ -223,7 +228,6 @@ def get_default_config():
     config['_trainer'] = "PPO"
     config['_policy'] = "PPO"
     config['_call']['checkpoint_freq'] = 0
-    config['_call']['name'] = 'adversarial_youshallnotpass'
     config['_train_steps'] = 99999999
     config['_update_config'] = None
     config['_run_inline'] = False
@@ -326,7 +330,6 @@ def get_config_fine():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_fine"
     config['_call']['num_samples'] = 300
     return config
 
@@ -347,7 +350,6 @@ def get_config_fine2():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_fine2"
     config['_call']['num_samples'] = 300
 
     # config['_run_inline'] = True
@@ -373,7 +375,6 @@ def get_config_best():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_best"
     config['_call']['num_samples'] = 4
 
     # config['_run_inline'] = True
@@ -399,7 +400,6 @@ def get_config_linear():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_linear"
     config['_call']['num_samples'] = 4
     # config['_run_inline'] = True
 
@@ -432,7 +432,6 @@ def get_config_sizes():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_sizes"
     config['_call']['num_samples'] = 4
     # config['_run_inline'] = True
 
@@ -463,7 +462,6 @@ def get_config_es():
     # ['humanoid_blocker', 'humanoid'],
     config['_train_policies'] = ['player_1']
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_es"
     config['_call']['num_samples'] = 1
     config['_trainer'] = 'ES'
 
@@ -485,7 +483,6 @@ def get_config_test_external():
     config['_train_policies'] = ['player_1', 'player_2']
     config['_policies'] = [None, "from_scratch_sb", "pretrained"]
     config['_train_steps'] = 1
-    config['_call']['name'] = "adversarial_external_test_sb"
     config['_call']['num_samples'] = 2
 
     config['train_batch_size'] = 1024
@@ -521,7 +518,6 @@ def get_config_cartpole_external():
                       "SingleAgentToMultiAgent": True,
                       "env_name": "InvertedPendulum-v2"}
 
-    config['_call']['name'] = "cartpole_external_sb"
     config['_call']['num_samples'] = 1
     return config
 
@@ -549,7 +545,6 @@ def get_config_test():
 
     config['_trainer'] = "PPO"
     config['_policy'] = "PPO"
-    config['_call']['name'] = "adversarial_test"
     config['_call']['num_samples'] = 1
 
     # config['_run_inline'] = True
@@ -581,7 +576,6 @@ def get_config_sample_speed():
 
     config['_trainer'] = "PPO"
     config['_policy'] = "PPO"
-    config['_call']['name'] = "adversarial_speed"
     config['_call']['num_samples'] = 1
     config['_call']['resources_per_trial'] = {
         "custom_resources": {"tune_cpu": tune.sample_from(lambda spec: spec.config.num_workers + 10)}}  # upper bound
@@ -658,7 +652,6 @@ def get_config_bursts_exp_sb():
     config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config['_call']['num_samples'] = 10
-    config['_call']['name'] = "adversarial_tune_bursts_exp_sb"
     return config
 
 
@@ -684,7 +677,6 @@ def get_config_victim_recover():
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_recover"
     config['_call']['num_samples'] = 4
     return config
 
@@ -704,7 +696,6 @@ def get_config_victim_recover_sb():
     config['_train_steps'] = 9999999999
 
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
-    config['_call']['name'] = "adversarial_tune_recover_sb"
     config['_call']['num_samples'] = 4
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
@@ -732,7 +723,6 @@ def get_config_bursts():
     config['_call']['stop'] = {'timesteps_total': 100000000}  # 30 million time-steps']
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_bursts"
     config['_call']['num_samples'] = 3
     return config
 
@@ -762,7 +752,6 @@ def get_config_bursts_exp():
     config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_bursts_exp"
     config['_call']['num_samples'] = 20
     return config
 
@@ -876,7 +865,6 @@ def get_config_victim_recover_withnormal_sb():
     config['_train_steps'] = 9999999999
 
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
-    config['_call']['name'] = "adversarial_tune_recover_withnormal_sb"
     config['_call']['num_samples'] = 5
 
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
@@ -913,7 +901,6 @@ def get_config_bursts_normal():
     config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal"
     config['_call']['num_samples'] = 1
     # ['humanoid_blocker', 'humanoid'],
 
@@ -950,7 +937,6 @@ def get_config_bursts_normal_pbt():
     config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     config["batch_mode"] = "complete_episodes"
-    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_pbt"
     config['_call']['num_samples'] = 100
     # ['humanoid_blocker', 'humanoid'],
 
@@ -981,7 +967,6 @@ def get_config_bursts_normal_1adv_sb():
 
     config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
-    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_1adv_sb"
     config['_call']['num_samples'] = 50
     # ['humanoid_blocker', 'humanoid'],
 
@@ -1013,7 +998,6 @@ def get_config_bursts_normal_pbt_sb():
 
     config['_call']['stop'] = {'timesteps_total': steps}
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 3}}
-    config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_pbt_sb"
     config['_call']['num_samples'] = 100
     # ['humanoid_blocker', 'humanoid'],
 
@@ -1040,7 +1024,6 @@ def get_config_defense_eval_sb():
     config['_train_steps'] = 9999999999
 
     config['_call']['stop'] = {'timesteps_total': 50000000}  # 30 million time-steps']
-    config['_call']['name'] = "adversarial_tune_eval_sb"
     config['_call']['num_samples'] = 2
     config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers']}}
     return config
