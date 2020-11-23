@@ -17,10 +17,14 @@ from ap_rllib.bursts import bursts_config_increase, bursts_config
 from ap_rllib.helpers import sample_int, tune_int
 from frankenstein.remote_trainer import ExternalTrainer
 from gym_compete_rllib import create_env
+import inspect
 
 
 # map config name -> config dict (for normal configs) or function (for 'online')
 CONFIGS = {}
+
+# map config name -> config description (or None)
+CONFIG_DESCR = {}
 
 
 # RLLib trainers
@@ -83,23 +87,28 @@ def select_config(title=None):
     d = Dialog()
     choices = []
     for c_key in sorted(CONFIGS.keys()):
-        config = CONFIGS[c_key]
-        if isinstance(config, dict):
-            descr = "tune run name: " + c_key
-        else:
-            descr = "interactive"
+        attrs = get_config_attributes(c_key)
+        descr = str(CONFIG_DESCR[c_key])
+        if attrs['online']:
+            descr += " (interactive)"
         choices.append((c_key, descr))
-    print(choices)
     code, tag = d.menu("Select configuration:", choices=choices, width=100, title=title)
     assert code == 'ok', f"Invalid response: {code} {tag}"
     return tag
 
 
-def register_config(name, online=False):
+def register_config(name, online=False, descr=None):
     """Register configuration."""
-    def register_inner(f):
-        global CONFIGS
+    def register_inner(f, descr=descr, online=online):
+        global CONFIGS, CONFIG_DESCR
         CONFIGS[name] = f if online else f()
+        
+        if descr is None:
+            caller = inspect.currentframe().f_back
+            config_module = str(caller.f_globals['__name__']).split('.')[-1]
+            descr = config_module + '/' + str(f.__doc__)
+        
+        CONFIG_DESCR[name] = descr
         return f
     return register_inner
 

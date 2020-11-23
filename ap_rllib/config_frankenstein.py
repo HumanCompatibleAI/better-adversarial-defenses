@@ -154,6 +154,7 @@ def get_config_bursts_normal_pbt_sb():
 
 @register_config(name='defense_eval_interactive_sb', online=True)
 def get_config_defense_eval_sb():
+    """Interactively select values for the target config and evaluate."""
     config = get_default_config()
     config = update_config_external_template(config)
 
