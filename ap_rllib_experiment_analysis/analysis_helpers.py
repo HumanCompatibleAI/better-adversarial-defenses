@@ -14,8 +14,9 @@ import gin
 
 
 def get_last_checkpoint(config_name):
-    from ap_rllib.config import CONFIGS
     """Get last checkpoint for an experiment."""
+    
+    from ap_rllib.config import CONFIGS
     home = expanduser("~")
     trial_name = CONFIGS[config_name]['_call']['name']
     path = os.path.join(home, 'ray_results', trial_name)
@@ -27,6 +28,9 @@ def get_last_checkpoint(config_name):
 
 @ray.remote(max_calls=1)
 def make_video_1(*args, **kwargs):
+    """Remote version of make_video.
+    
+    max_calls to fix a memory leak issue."""
     return make_video(*args, **kwargs)
 
 def ray_get_tqdm(remaining_ids):

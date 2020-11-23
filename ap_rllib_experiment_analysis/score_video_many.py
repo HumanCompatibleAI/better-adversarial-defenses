@@ -1,3 +1,5 @@
+"""Make videos/score a set of videos in parallel using ray."""
+
 from ap_rllib_experiment_analysis.analysis_helpers import get_videos, get_scores
 import argparse
 import gin

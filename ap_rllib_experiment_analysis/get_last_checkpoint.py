@@ -1,3 +1,5 @@
+"""Get last checkpoint for a given run."""
+
 import argparse
 from ap_rllib_experiment_analysis.analysis_helpers import get_last_checkpoint
 from ap_rllib.config import CONFIGS
