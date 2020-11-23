@@ -37,6 +37,9 @@ def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
     # only showing errors, to prevent too many messages from coming
     kwargs['logging_level'] = logging.ERROR
 
+    # add webui
+    kwargs['include_webui'] = True
+
     # launching ray
     return ray.init(log_to_driver=True, **kwargs)
 
