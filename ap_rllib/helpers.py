@@ -32,13 +32,13 @@ def ray_init(shutdown=True, tmp_dir='/tmp', **kwargs):
         # `tune_cpu` resources are used to limit number of
         # concurrent trials
         kwargs['resources'] = {'tune_cpu': num_cpus}
-        kwargs['temp_dir'] = tmp_dir
+        kwargs['_temp_dir'] = tmp_dir
 
     # only showing errors, to prevent too many messages from coming
     kwargs['logging_level'] = logging.ERROR
 
     # add webui
-    kwargs['include_webui'] = True
+    kwargs['include_dashboard'] = True
 
     # launching ray
     return ray.init(log_to_driver=True, **kwargs)

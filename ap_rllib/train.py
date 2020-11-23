@@ -179,7 +179,8 @@ def train_one_with_sacred(config, checkpoint_dir=None):
             if iteration > config['_train_steps']:
                 return
 
-    return ex.run()
+    ex.run()
+    return True
 
 
 def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False, resume=False):
