@@ -1,0 +1,56 @@
+diff --git a/rllib/models/catalog.py b/rllib/models/catalog.py
+index 5e2135f4c..9790e38b5 100644
+--- a/rllib/models/catalog.py
++++ b/rllib/models/catalog.py
+@@ -315,7 +315,7 @@ class ModelCatalog:
+ 
+                     def track_var_creation(next_creator, **kw):
+                         v = next_creator(**kw)
+-                        created.add(v)
++                        created.add(v.ref())
+                         return v
+ 
+                     with tf.variable_creator_scope(track_var_creation):
+@@ -339,19 +339,25 @@ class ModelCatalog:
+                             # Other error -> re-raise.
+                             else:
+                                 raise e
+-                    registered = set(instance.variables())
++                    registered = set([v.ref() for v in instance.variables()])
+                     not_registered = set()
+                     for var in created:
+                         if var not in registered:
+                             not_registered.add(var)
+                     if not_registered:
+-                        raise ValueError(
++                        def summarize_var_ref(ref):
++                            """Get a string summary for a variable reference."""
++                            var = ref.deref()
++                            return f"<tf.Varaible {var.name} shape={var.shape} {var.dtype}>"
++                        not_registered_names = [summarize_var_ref(x) for x in not_registered]
++                        registered_names = [summarize_var_ref(x) for x in registered]
++                        print(
+                             "It looks like variables {} were created as part "
+                             "of {} but does not appear in model.variables() "
+                             "({}). Did you forget to call "
+                             "model.register_variables() on the variables in "
+-                            "question?".format(not_registered, instance,
+-                                               registered))
++                            "question?".format(not_registered_names, instance,
++                                               registered_names))
+                 else:
+                     # PyTorch automatically tracks nn.Modules inside the parent
+                     # nn.Module's constructor.
+diff --git a/rllib/models/modelv2.py b/rllib/models/modelv2.py
+index 927baff9c..d7c57636e 100644
+--- a/rllib/models/modelv2.py
++++ b/rllib/models/modelv2.py
+@@ -359,7 +359,7 @@ def _unpack_obs(obs, space, tensorlib=tf):
+                     prep.shape[0], obs.shape))
+         offset = 0
+         if tensorlib == tf:
+-            batch_dims = [v.value for v in obs.shape[:-1]]
++            batch_dims = [v if isinstance(v, int) else v.value for v in obs.shape[:-1]]
+             batch_dims = [-1 if v is None else v for v in batch_dims]
+         else:
+             batch_dims = list(obs.shape[:-1])
