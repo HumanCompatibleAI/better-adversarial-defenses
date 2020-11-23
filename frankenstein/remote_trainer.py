@@ -10,13 +10,14 @@ from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG as config_ppo
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.rllib.agents.trainer_template import build_trainer
 from ray.rllib.evaluation.worker_set import WorkerSet
-from ray.rllib.execution.common import SampleBatchType, STEPS_TRAINED_COUNTER, LEARNER_INFO, \
+from ray.rllib.execution.common import STEPS_TRAINED_COUNTER, LEARNER_INFO, \
     WORKER_UPDATE_TIMER, LEARN_ON_BATCH_TIMER, LOAD_BATCH_TIMER, \
     _get_global_vars, _check_sample_batch_type, _get_shared_metrics
 from ray.rllib.execution.metric_ops import StandardMetricsReporting
 from ray.rllib.execution.rollout_ops import ParallelRollouts, ConcatBatches, StandardizeFields, SelectExperiences
-from ray.rllib.policy.policy import PolicyID
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, MultiAgentBatch
+from ray.rllib.utils.typing import PolicyID, SampleBatchType
+
 
 from ap_rllib.helpers import filter_pickleable, dict_get_any_value, save_gym_space, unlink_ignore_error
 from frankenstein.remote_communicator import RemoteHTTPPickleCommunicator

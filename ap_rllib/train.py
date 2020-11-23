@@ -23,6 +23,7 @@ parser.add_argument('--tune', type=str, help='Run tune', default=None, required=
 parser.add_argument('--tmp_dir', type=str, help='Temporary directory', default='/tmp', required=False)
 parser.add_argument('--config_override', type=str, help='Config override json', default=None, required=False)
 parser.add_argument('--verbose', action='store_true', required=False)
+parser.add_argument('--resume', action='store_true', required=False, help="Resume all trials from the checkpoint.")
 
 
 def train_iteration_process(pickle_path):
@@ -181,7 +182,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     return ex.run()
 
 
-def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False):
+def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False, resume=False):
     """Call tune."""
     config = get_config_by_name(config_name)
     cluster_info = ray_init(tmp_dir=tmp_dir)
@@ -203,6 +204,10 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False
     if verbose:
         print("Template config")
         print(config)
+        
+    resume_ = False
+    if resume:
+        resume_ = 'all'
 
     # running tune
     tune.run(
@@ -211,6 +216,7 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False
         verbose=True,
         queue_trials=True,
         **config['_call'],
+        resume=resume_,
     )
 
 
@@ -232,6 +238,6 @@ if __name__ == '__main__':
 
     if config is not None:
         run_tune(config_name=config, config_override=args.config_override,
-                 tmp_dir=args.tmp_dir, verbose=args.verbose)
+                 tmp_dir=args.tmp_dir, verbose=args.verbose, resume=args.resume)
 
     sys.exit(0)
