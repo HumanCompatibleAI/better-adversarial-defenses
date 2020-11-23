@@ -202,6 +202,8 @@ def execution_plan(workers, config):
 
 # creating ExternalTrainer
 DEFAULT_CONFIG = deepcopy(config_ppo)
+
+# default values, can be changed using rllib configuration
 DEFAULT_CONFIG.update({'http_remote_port': "http://127.0.0.1:50001", 'run_uid': 'aba', 'tmp_dir': '/tmp/'})
 DEFAULT_CONFIG = with_common_config(DEFAULT_CONFIG)
 
