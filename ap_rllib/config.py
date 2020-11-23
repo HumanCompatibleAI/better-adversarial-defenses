@@ -544,10 +544,11 @@ def get_config_sample_speed():
     config = get_default_config()
 
     config['train_batch_size'] = 16384
+    config['_policies'] = [None, "from_scratch_sb", "pretrained"]
     config['lr'] = 3e-4
     config['sgd_minibatch_size'] = 4096
     config['num_sgd_iter'] = 4
-    config['rollout_fragment_length'] = 128
+    config['rollout_fragment_length'] = 100
     config['num_workers'] = tune.grid_search([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
     config['num_envs_per_worker'] = tune.grid_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
@@ -563,7 +564,7 @@ def get_config_sample_speed():
     config['_call']['name'] = "adversarial_speed"
     config['_call']['num_samples'] = 1
     config['_call']['resources_per_trial'] = {
-        "custom_resources": {"tune_cpu": tune.sample_from(lambda spec: spec.config.num_workers + 1)}}  # upper bound
+        "custom_resources": {"tune_cpu": tune.sample_from(lambda spec: spec.config.num_workers + 10)}}  # upper bound
 
     # config['_run_inline'] = True
 
@@ -982,18 +983,18 @@ def get_config_bursts_normal_pbt_sb():
     config['_train_policies'] = []
     config['_update_withpolicies'] = bursts_config_increase
     config['_train_steps'] = 10000
-    config['_eval_steps'] = 1500
+    config['_eval_steps'] = 2500
     config['_burst_exponent'] = tune.loguniform(1, 2.2, 2)
-    config['_p_normal'] = tune.uniform(0.1, 0.9)
-    config['_n_adversaries'] = 5  # tune_int(tune.uniform(1, 10))
+    config['_p_normal'] = 0.5 # tune.uniform(0.1, 0.9)
+    config['_n_adversaries'] = 5 # tune_int(tune.uniform(1, 10))
     config['entropy_coeff'] = tune.uniform(0, 0.02)
 
     steps = (config['_train_steps'] + config['_eval_steps']) * config['train_batch_size']
 
     config['_call']['stop'] = {'timesteps_total': steps}
-    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 1}}
+    config['_call']['resources_per_trial'] = {"custom_resources": {"tune_cpu": config['num_workers'] + 3}}
     config['_call']['name'] = "adversarial_tune_bursts_exp_withnormal_pbt_sb"
-    config['_call']['num_samples'] = 50
+    config['_call']['num_samples'] = 100
     # ['humanoid_blocker', 'humanoid'],
 
     # config['_run_inline'] = True
