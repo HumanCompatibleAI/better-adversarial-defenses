@@ -26,7 +26,7 @@ def make_video(args):
     from ap_rllib.train import ray_init
     from ap_rllib.config import build_trainer_config, get_config_by_name
     from ap_rllib import config
-    from ap_rllib.config import TRAINERS
+    from ap_rllib.config_helpers import TRAINERS
     from tqdm import tqdm
     import numpy as np
 

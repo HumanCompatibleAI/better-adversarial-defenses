@@ -11,7 +11,7 @@ from copy import deepcopy
 from ray.tune.logger import pretty_print
 from sacred.observers import MongoObserver
 
-from ap_rllib.config import CONFIGS, get_trainer, get_config_by_name, select_config
+from ap_rllib.config import get_trainer, get_config_by_name, select_config, get_config_names
 from ap_rllib.helpers import dict_to_sacred, unlink_ignore_error, ray_init
 from ray import tune
 
@@ -19,7 +19,7 @@ from ray import tune
 parser = argparse.ArgumentParser(description='Train in YouShallNotPass')
 parser.add_argument('--from_pickled_config', type=str, help='Trial to run (if None, run tune)', default=None,
                     required=False)
-parser.add_argument('--tune', type=str, help='Run tune', default=None, required=False, choices=CONFIGS.keys())
+parser.add_argument('--tune', type=str, help='Run tune', default=None, required=False, choices=get_config_names())
 parser.add_argument('--tmp_dir', type=str, help='Temporary directory', default='/tmp', required=False)
 parser.add_argument('--config_override', type=str, help='Config override json', default=None, required=False)
 parser.add_argument('--verbose', action='store_true', required=False)
