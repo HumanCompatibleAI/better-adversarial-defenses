@@ -1,3 +1,6 @@
+from ap_rllib.config_helpers import get_agent_config
+import numpy as np
+
 def get_policies_all(config, n_policies, obs_space, act_space, policy_template="player_%d%s"):
     """Get a policy dictionary, both pretrained/from scratch."""
     which_arr = {"pretrained": "_pretrained", "from_scratch": ""}
