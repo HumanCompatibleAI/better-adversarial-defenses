@@ -41,6 +41,9 @@ def train_iteration_process(pickle_path):
     # connecting to the existing ray session
     ray_init(shutdown=False, address=config['_redis_address'], tmp_dir=config['_tmp_dir'])
 
+    if config['_verbose']:
+        logging.basicConfig(level=logging.INFO)
+
     # obtaining the trainer
     trainer = get_trainer(config)
 
@@ -109,6 +112,9 @@ def train_one_with_sacred(config, checkpoint_dir=None, **kwargs):
     if 'run_uid' in config and config['run_uid'] == '_setme':
         config['run_uid'] = str(uuid.uuid1())
 
+    if config['_verbose']:
+        logging.basicConfig(level=logging.INFO)
+
     # creating a sacred experiment
     # https://github.com/IDSIA/sacred/issues/492	
     from sacred import Experiment, SETTINGS
@@ -133,6 +139,7 @@ def train_one_with_sacred(config, checkpoint_dir=None, **kwargs):
                     """Get last value from a dataframe that is not null."""
                     if not hasattr(df, attr):
                         raise ValueError(f"Dataframe doesn't have an attribute {attr}")
+                    arr = getattr(df, attr)
                     arr = [x for x in arr if x]
                     if not arr:
                         raise ValueError(f"No non-null items in {arr}")
@@ -141,7 +148,7 @@ def train_one_with_sacred(config, checkpoint_dir=None, **kwargs):
                 df = get_df_from_logdir(ckpt)
                 checkpoint_trainer = get_last_nonnull(df, attr='checkpoint_rllib')
                 last_iteration = get_last_nonnull(df, attr='trainer_iteration')
-                logger.info(f"Found previous run iteration={last_iteration} checkpoint={checkpoint_trainer}")
+                logger.info(f"Found previous run {ckpt} iteration={last_iteration} checkpoint={checkpoint_trainer}")
                 checkpoint = checkpoint_trainer
                 iteration = last_iteration
             except ValueError as err:
@@ -229,6 +236,7 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False
             config[k] = v
 
     if verbose:
+        logging.basicConfig(level=logging.INFO)
         print("Template config")
         print(config)
         
@@ -245,6 +253,7 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False
         train_one_with_sacred,
         config=config,
         **config['_call'],
+        fail_fast=True,
     )
 
 
