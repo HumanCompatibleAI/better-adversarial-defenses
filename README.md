@@ -79,7 +79,7 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
    * Log files will appear in `~/ray_results/run_type/run_name`. Use [TensorBoard](https://www.tensorflow.org/tensorboard) in this folder.,
       - `run_type` is determined by the configuration (`config['_call']['name']` attribute). See [`config.py`](ap_rllib/config.py).
       - `run_name` is determined by [tune](https://docs.ray.io/en/latest/tune/index.html) -- see output of the train script.
-   * Checkpoints will be in `~/ray_results/xxx/checkpoint_n/` where `xxx` and `n` are stored in the log files, one entry for every iteration. See an [example notebook](ap_rllib_experiment_analysis/youshallnotpass_rllib-analysis-external-recover-withnormal.ipynb) or [a script](ap_rllib_experiment_analysis/get_last_checkpoint.py) obtaining the last checkpoint for details on how to do that.
+   * Checkpoints will be in `~/ray_results/xxx/checkpoint_n/` where `xxx` and `n` are stored in the log files, one entry for every iteration. See an [example notebook](ap_rllib_experiment_analysis/notebooks/youshallnotpass_rllib-analysis-external-recover-withnormal.ipynb) or [a script](ap_rllib_experiment_analysis/get_last_checkpoint.py) obtaining the last checkpoint for details on how to do that.
 
    * Some specifig configurations:
      - `--tune external_cartpole` runs training in InvertedPendulum, using Stable Baselines PPO implementation.
@@ -133,7 +133,8 @@ Files:
 
 
 Folders:
-* [`ap_rllib_experiment_analysis`](ap_rllib_experiment_analysis) contains notebooks that analyze runs
+* [`ap_rllib_experiment_analysis/notebooks`](ap_rllib_experiment_analysis/notebooks) contains notebooks that analyze runs
+* [`ap_rllib_experiment_analysis`](ap_rllib_experiment_analysis) contains scripts that help with analyzing runs
 * [`frankenstein`](frankenstein) contains the code for integrating Stable Baselines and RLLib
 * [`gym_compete_rllib`](gym_compete_rllib) connects rllib to the `multicomp` environment
 
