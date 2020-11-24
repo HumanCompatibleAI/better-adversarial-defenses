@@ -186,7 +186,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
                 return
 
     ex.run()
-    return True
+    return None
 
 
 def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False, resume=False,

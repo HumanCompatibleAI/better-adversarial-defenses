@@ -16,14 +16,15 @@ import gin
 def get_last_checkpoint(config_name):
     """Get last checkpoint for an experiment."""
     
-    from ap_rllib.config import CONFIGS
+    from ap_rllib.config import get_config_by_name
     home = expanduser("~")
-    trial_name = CONFIGS[config_name]['_call']['name']
+    trial_name = get_config_by_name(config_name)['_call']['name']
     path = os.path.join(home, 'ray_results', trial_name)
     trial = sorted(os.listdir(path))[-1]
     path_with_trial = os.path.join(path, trial)
     df = get_df_from_logdir(path_with_trial, do_tqdm=False)
-    checkpoint = str(df.checkpoint_rllib.iloc[-1])
+    ckpts = [x for x in df.checkpoint_rllib if x]
+    checkpoint = str(ckpts[-1])
     return checkpoint
 
 @ray.remote(max_calls=1)
