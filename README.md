@@ -92,6 +92,7 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
    * If you want to quickly iterate with your config (use smaller batch size and no remote workers), pass an option to the trainer
    
       `--config_override='{"train_batch_size": 1000, "sgd_minibatch_size": 1000, "num_workers": 0, "_run_inline": 1}'`
+   * Large number of processes might run into the open files limit. This might help: `ulimit -n 999999`
 
 2. To make a video:
 
