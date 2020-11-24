@@ -75,6 +75,7 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
    `(adv-tf2) $ python -m ap_rllib.train --tune test`
 
    * The script will automatically log results to [Sacred](https://sacred.readthedocs.io/) and [Tune](https://docs.ray.io/en/latest/tune/index.html)
+   * By-default, the script asks which configuration to run, but it can be set manually with the `--tune` argument.
    * Log files will appear in `~/ray_results/run_type/run_name`. Use [TensorBoard](https://www.tensorflow.org/tensorboard) in this folder.,
       - `run_type` is determined by the configuration (`config['_call']['name']` attribute). See [`config.py`](ap_rllib/config.py).
       - `run_name` is determined by [tune](https://docs.ray.io/en/latest/tune/index.html) -- see output of the train script.
@@ -89,6 +90,9 @@ Full installation can be found in [`Dockerfile`](Dockerfile).
           - The overhead is not that significant, as training finishes extremely quickly compared to data collection
      - `--tune bursts_exp_withnormal_pbt_sb` will run training with Stable Baselines + Bursts + Normal opponent included + PBT (multiple adversaries)
    * `--verbose` enables some additional output
+   * `--show_config` only shows configuration and exits
+   * `--resume` will re-start trials if there are already trials in the results directory with this name
+     - notebook [tune_pre_restart.ipynb](ap_rllib_experiment_analysis/notebooks/tune_pre_restart.ipynb) allows to convert ray 0.8.6 checkpoints to ray 1.0.1 checkpoints
    * If you want to quickly iterate with your config (use smaller batch size and no remote workers), pass an option to the trainer
    
       `--config_override='{"train_batch_size": 1000, "sgd_minibatch_size": 1000, "num_workers": 0, "_run_inline": 1}'`
