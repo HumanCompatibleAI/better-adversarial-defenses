@@ -24,6 +24,7 @@ parser.add_argument('--tmp_dir', type=str, help='Temporary directory', default='
 parser.add_argument('--config_override', type=str, help='Config override json', default=None, required=False)
 parser.add_argument('--verbose', action='store_true', required=False)
 parser.add_argument('--resume', action='store_true', required=False, help="Resume all trials from the checkpoint.")
+parser.add_argument('--show_config', action='store_true', required=False, help="Only show config (no train)")
 
 
 def train_iteration_process(pickle_path):
@@ -95,6 +96,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     do_track = True
     checkpoint = checkpoint_dir
     os.chdir(config['_base_dir'])
+    print("Checkpoint provided by tune", checkpoint)
 
     if config['framework'] == 'tfe':
         tf.compat.v2.enable_v2_behavior()
@@ -118,8 +120,13 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     @ex.main
     def train_one(config, checkpoint=None, do_track=True):
         """One trial with subprocesses for each iteration."""
-        if not isinstance(checkpoint, str):
-            checkpoint = None
+        iteration = 0
+        if checkpoint:
+            print("Opening checkpoint", checkpoint)
+            with open(os.path.join(checkpoint, "checkpoint")) as f:
+                state = json.loads(f.read())
+                iteration = state["step"] + 1
+            print(state, iteration)
 
         def train_iteration(checkpoint, config):
             """One training iteration with subprocess."""
@@ -154,7 +161,6 @@ def train_one_with_sacred(config, checkpoint_dir=None):
                 raise Exception("Train subprocess has failed, error %s" % (pickle_path + '.err'))
             return results
 
-        iteration = 0
         # running iterations	
         while True:
             # doing edits in the config, bursts, for example
@@ -176,14 +182,15 @@ def train_one_with_sacred(config, checkpoint_dir=None):
                 print(pretty_print(results))
 
             # stopping at the end
-            if iteration > config['_train_steps']:
+            if iteration >= config['_train_steps']:
                 return
 
     ex.run()
     return True
 
 
-def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False, resume=False):
+def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False, resume=False,
+             show_only=False):
     """Call tune."""
     config = get_config_by_name(config_name)
     cluster_info = ray_init(tmp_dir=tmp_dir)
@@ -206,18 +213,19 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False
         print("Template config")
         print(config)
         
-    resume_ = False
-    if resume:
-        resume_ = 'all'
+    config['_call']['resume'] = resume #'PROMPT' if resume else False
+    config['_call']['verbose'] = True
+    config['_call']['queue_trials'] = True
+
+    if show_only:
+        print(pretty_print(config))
+        return
 
     # running tune
     tune.run(
         train_one_with_sacred,
         config=config,
-        verbose=True,
-        queue_trials=True,
         **config['_call'],
-        resume=resume_,
     )
 
 
@@ -239,6 +247,7 @@ if __name__ == '__main__':
 
     if config is not None:
         run_tune(config_name=config, config_override=args.config_override,
-                 tmp_dir=args.tmp_dir, verbose=args.verbose, resume=args.resume)
+                 tmp_dir=args.tmp_dir, verbose=args.verbose, resume=args.resume,
+                 show_only=args.show_config)
 
     sys.exit(0)
