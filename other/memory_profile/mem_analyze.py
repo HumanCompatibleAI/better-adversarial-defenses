@@ -13,10 +13,17 @@ parser.add_argument('--input', type=str, help="input file (from mem_profile.py)"
 parser.add_argument('--max_lines', type=int, help="Maximal number of lines to read", default=-1, required=False)
 parser.add_argument('--customize', help="Select which processes to show", action="store_true")
 parser.add_argument('--subtract', help='Subtract the baseline (memory at start)', action="store_true")
+parser.add_argument('--track', help="Override the default tracking (ray)", action='append', required=False, default=[])
 
 
 prefixes = ["ray::ImplicitFunc", "ray::RolloutWorker"]
 args = parser.parse_args()
+
+if args.track:
+    prefixes = args.track
+
+if not args.customize:
+    print("Tracking", prefixes)
 
 input_file = args.input
 if args.input is None:
