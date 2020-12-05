@@ -65,8 +65,10 @@ def fill_which_training(rdf, policies):
     which_training_arr = []
     for i, line in rdf.iterrows():
         currently_training = set([p for p in policies if not np.isnan(line.get(f"info/learner/{p}/policy_loss", np.nan))])
-        assert len(currently_training) == 1, f"Training both at step {i}: {currently_training}"
-        which_training = int(list(currently_training)[0].split('_')[1])
+        assert all([x.startswith('player_') for x in currently_training])
+        player_indices = list(set([x.split('_')[1] for x in currently_training]))
+        assert len(player_indices) == 1, f"Training both at step {i}: {currently_training}"
+        which_training = int(player_indices[0])
         which_training_arr.append(which_training)
 
     rdf['which_training'] = which_training_arr
