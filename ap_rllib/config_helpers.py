@@ -2,6 +2,7 @@ import os
 from copy import deepcopy
 from functools import partial
 
+import logging
 import numpy as np
 from dialog import Dialog
 from ray import tune
@@ -12,6 +13,7 @@ from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.tune.logger import pretty_print
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.sample import Domain
 
 from ap_rllib.bursts import bursts_config_increase, bursts_config
 from ap_rllib.helpers import sample_int, tune_int
@@ -169,6 +171,12 @@ def build_trainer_config(config):
 
     if config['_trainer'] == 'External' and '_tmp_dir' in config:
         rl_config['tmp_dir'] = config['_tmp_dir']
+        
+    for key, val in rl_config.items():
+        if isinstance(val, Domain):
+            sampled_val = val.sample()
+            rl_config[key] = sampled_val
+            logging.warning(f"Trainer got a ray.tune.sample for parameter {key}: {type(val)}({val}). Replacing it with a sampled value {sampled_val}")
 
     return rl_config
 
