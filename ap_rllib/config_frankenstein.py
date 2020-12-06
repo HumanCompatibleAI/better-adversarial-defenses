@@ -30,6 +30,16 @@ def get_config_test_external():
     config['num_envs_per_worker'] = 2
     return config
 
+@register_config(name='external_test_normal')
+def get_config_test_external_normal():
+    """Run with training via stable baselines with normal opponent."""
+    # try changing learning rate
+    config = get_config_test_external()
+
+    config['_train_policies'] = ['player_1', 'player_2']
+    config['_policies'] = [None, "pretrained", "pretrained"]
+    return config
+
 @register_config(name='test_burst')
 def get_config_test_bursts():
     """Run with bursts (small test run)."""
