@@ -11,6 +11,7 @@ from gym_compete_rllib.load_gym_compete_policy import get_policy_value_nets
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
+import six
 
 # scaler for reward output for players
 REWARD_SCALER = 1. / 100
@@ -164,6 +165,36 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
 
     def reset_dones(self):
         self.dones = {name: False for name in self.player_names}
+        
+    def get_agent_contacts(self):
+        """Get contacts between agents, taken from the Sumo env."""
+        scene = self._env.env_scene
+        mjcontacts = scene.data._wrapped.contents.contact
+        ncon = scene.model.data.ncon
+        contacts = []
+        for i in range(ncon):
+            ct = mjcontacts[i]
+            g1 , g2 = ct.geom1, ct.geom2
+            g1 = scene.model.geom_names[g1]
+            g2 = scene.model.geom_names[g2]
+            if g1.find(six.b('agent')) >= 0 and g2.find(six.b('agent')) >= 0:
+                if g1.find(six.b('agent0')) >= 0:
+                    if g2.find(six.b('agent1')) >= 0 and ct.dist < 0:
+                        contacts.append((g1, g2, ct.dist))
+                elif g1.find(six.b('agent1')) >= 0:
+                    if g2.find(six.b('agent0')) >= 0 and ct.dist < 0:
+                        contacts.append((g1, g2, ct.dist))
+        return contacts
+    
+    def info_add_contacts(self, infos):
+        """Add contact information to the infos dict."""
+        if not isinstance(infos, dict):
+            return infos
+        for key, val in infos.items():
+            if isinstance(val, dict):
+                infos[key]['contact'] = len(self.get_agent_contacts())
+        return infos
+        
 
     def pack_array(self, array):
         """Given an array for players, return a dict player->value."""
@@ -209,6 +240,9 @@ class GymCompeteToRLLibAdapter(MultiAgentEnv):
         rew = dct_to_float32(rew)
         obs = dct_to_float32(obs)
 
+        # adding contact information
+        infos = self.info_add_contacts(infos)
+        
         return obs, rew, dones, infos
 
     @property
