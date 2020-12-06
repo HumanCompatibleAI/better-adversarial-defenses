@@ -73,15 +73,19 @@ def make_video(args):
         trainer.restore(args.checkpoint)
 
     stats_all = {}
-
-    # doing rollouts
-    for _ in tqdm(range(config['_train_steps'])):
-        stats_all = {x: y for x, y in trainer.train()['hist_stats'].items() if x.endswith('reward')}
-        
-    print(stats_all)
-
+    
     # processing win/lose rates
     results = {}
+    
+    # doing rollouts
+    for _ in tqdm(range(config['_train_steps'])):
+        stats = trainer.train()
+        stats_all = {x: y for x, y in stats['hist_stats'].items() if x.endswith('reward')}
+        v_contact = stats.get('custom_metrics', {}).get('contacts_mean', None)
+        if v_contact is not None:
+            results['contacts_mean'] = v_contact
+        
+    print(stats_all)
 
     for player, stats in stats_all.items():
         stats = np.array(stats)
@@ -96,6 +100,8 @@ def make_video(args):
         results['wins_' + player] = wins
         results['losses_' + player] = losses
         results['ties_' + player] = ties
+        
+    print(results)
 
     # adding videos as results
     if not args.no_video:
