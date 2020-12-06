@@ -20,7 +20,7 @@ from ap_rllib.helpers import sample_int, tune_int
 from frankenstein.remote_trainer import ExternalTrainer
 from gym_compete_rllib import create_env
 import inspect
-
+from ap_rllib.config_info_callbacks import InfoCallbacks
 
 # map config name -> config dict (for normal configs) or function (for 'online')
 CONFIGS = {}
@@ -165,7 +165,7 @@ def build_trainer_config(config):
         if k.startswith('_'): continue
         rl_config[k] = v
 
-    if config['_verbose']:
+    if config.get('_verbose', True):
         print("Config:")
         print(pretty_print(rl_config))
 
@@ -284,6 +284,7 @@ def get_default_config():
     config['_get_policies'] = get_policies_default
     config['_do_not_train_policies'] = []
     config['_update_withpolicies'] = None
+    config['callbacks'] = InfoCallbacks
 
     return config
 
