@@ -2,6 +2,7 @@ import os
 from copy import deepcopy
 from functools import partial
 
+import logging
 import numpy as np
 from dialog import Dialog
 from ray import tune
@@ -12,13 +13,14 @@ from ray.rllib.agents.ppo.appo_tf_policy import AsyncPPOTFPolicy
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 from ray.tune.logger import pretty_print
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.sample import Domain
 
 from ap_rllib.bursts import bursts_config_increase, bursts_config
 from ap_rllib.helpers import sample_int, tune_int
 from frankenstein.remote_trainer import ExternalTrainer
 from gym_compete_rllib import create_env
 import inspect
-
+from ap_rllib.config_info_callbacks import InfoCallbacks
 
 # map config name -> config dict (for normal configs) or function (for 'online')
 CONFIGS = {}
@@ -163,12 +165,18 @@ def build_trainer_config(config):
         if k.startswith('_'): continue
         rl_config[k] = v
 
-    if config['_verbose']:
+    if config.get('_verbose', True):
         print("Config:")
         print(pretty_print(rl_config))
 
     if config['_trainer'] == 'External' and '_tmp_dir' in config:
         rl_config['tmp_dir'] = config['_tmp_dir']
+        
+    for key, val in rl_config.items():
+        if isinstance(val, Domain):
+            sampled_val = val.sample()
+            rl_config[key] = sampled_val
+            logging.warning(f"Trainer got a ray.tune.sample for parameter {key}: {type(val)}({val}). Replacing it with a sampled value {sampled_val}")
 
     return rl_config
 
@@ -276,6 +284,7 @@ def get_default_config():
     config['_get_policies'] = get_policies_default
     config['_do_not_train_policies'] = []
     config['_update_withpolicies'] = None
+    config['callbacks'] = InfoCallbacks
 
     return config
 

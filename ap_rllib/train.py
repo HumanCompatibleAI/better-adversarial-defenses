@@ -9,10 +9,12 @@ import time
 import uuid
 from copy import deepcopy
 from ray.tune.logger import pretty_print
+import logging
 from sacred.observers import MongoObserver
 
 from ap_rllib.config import get_trainer, get_config_by_name, select_config, get_config_names
 from ap_rllib.helpers import dict_to_sacred, unlink_ignore_error, ray_init
+from ap_rllib_experiment_analysis.analysis_helpers import get_df_from_logdir
 from ray import tune
 
 # parser for main()
@@ -26,6 +28,8 @@ parser.add_argument('--verbose', action='store_true', required=False)
 parser.add_argument('--resume', action='store_true', required=False, help="Resume all trials from the checkpoint.")
 parser.add_argument('--show_config', action='store_true', required=False, help="Only show config (no train)")
 
+logger = logging.getLogger('train_script')
+
 
 def train_iteration_process(pickle_path):
     """Load config from pickled file, run and pickle the results."""
@@ -36,6 +40,9 @@ def train_iteration_process(pickle_path):
 
     # connecting to the existing ray session
     ray_init(shutdown=False, address=config['_redis_address'], tmp_dir=config['_tmp_dir'])
+
+    if config['_verbose']:
+        logging.basicConfig(level=logging.INFO)
 
     # obtaining the trainer
     trainer = get_trainer(config)
@@ -62,7 +69,7 @@ def train_iteration_process(pickle_path):
                 target_keys = trainer.get_weights().keys()
                 assert policy_target in target_keys, f"Wrong target key: {policy_target} {target_keys}"
                 trainer.get_policy(policy_target).set_weights(w)
-                print(f"Set weights for policy {policy_target} from {config['_checkpoint_restore']}/{policy_source}")
+                logger.info(f"Set weights for policy {policy_target} from {config['_checkpoint_restore']}/{policy_source}")
         else:
             trainer_1 = get_trainer(config)
             trainer_1.restore(config['_checkpoint_restore'])
@@ -73,7 +80,7 @@ def train_iteration_process(pickle_path):
         for policy, path in config['_checkpoint_restore_policy'].items():
             weights = pickle.load(open(path, 'rb'))
             trainer.get_policy(policy).set_weights(weights)
-            print(f"Set weights for policy {policy} from {path}")
+            logger.info(f"Set weights for policy {policy} from {path}")
 
     # doing one train interation and saving
     results = trainer.train()
@@ -91,12 +98,12 @@ def train_iteration_process(pickle_path):
     pickle.dump(results, open(pickle_path + '.ans.pkl', 'wb'))
 
 
-def train_one_with_sacred(config, checkpoint_dir=None):
+def train_one_with_sacred(config, checkpoint_dir=None, **kwargs):
     """Train one trial with reporting to sacred."""
+    del checkpoint_dir  # Unused, will look at the trainer dir and try to restore from .checkpoint_rllib
+    checkpoint = None
     do_track = True
-    checkpoint = checkpoint_dir
     os.chdir(config['_base_dir'])
-    print("Checkpoint provided by tune", checkpoint)
 
     if config['framework'] == 'tfe':
         tf.compat.v2.enable_v2_behavior()
@@ -104,6 +111,9 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     # setting a unique run id if necessary
     if 'run_uid' in config and config['run_uid'] == '_setme':
         config['run_uid'] = str(uuid.uuid1())
+
+    if config['_verbose']:
+        logging.basicConfig(level=logging.INFO)
 
     # creating a sacred experiment
     # https://github.com/IDSIA/sacred/issues/492	
@@ -121,12 +131,28 @@ def train_one_with_sacred(config, checkpoint_dir=None):
     def train_one(config, checkpoint=None, do_track=True):
         """One trial with subprocesses for each iteration."""
         iteration = 0
-        if checkpoint:
-            print("Opening checkpoint", checkpoint)
-            with open(os.path.join(checkpoint, "checkpoint")) as f:
-                state = json.loads(f.read())
-                iteration = state["step"] + 1
-            print(state, iteration)
+        # trying to load the checkpoint...
+        with tune.checkpoint_dir(step=0) as ckpt:
+            ckpt = os.path.dirname(ckpt)
+            try:
+                def get_last_nonnull(df, attr):
+                    """Get last value from a dataframe that is not null."""
+                    if not hasattr(df, attr):
+                        raise ValueError(f"Dataframe doesn't have an attribute {attr}")
+                    arr = getattr(df, attr)
+                    arr = [x for x in arr if x]
+                    if not arr:
+                        raise ValueError(f"No non-null items in {arr}")
+                    return arr[-1]
+
+                df = get_df_from_logdir(ckpt)
+                checkpoint_trainer = get_last_nonnull(df, attr='checkpoint_rllib')
+                last_iteration = get_last_nonnull(df, attr='trainer_iteration')
+                logger.info(f"Found previous run {ckpt} iteration={last_iteration} checkpoint={checkpoint_trainer}")
+                checkpoint = checkpoint_trainer
+                iteration = last_iteration
+            except ValueError as err:
+                logger.warning(f"Checkpoint loading for trial {ckpt} failed: {err}. Are there checkpoints?")
 
         def train_iteration(checkpoint, config):
             """One training iteration with subprocess."""
@@ -171,7 +197,7 @@ def train_one_with_sacred(config, checkpoint_dir=None):
             results = train_iteration(checkpoint, config_updated)
             checkpoint = results['checkpoint_rllib']
             iteration = results['trainer_iteration']
-            print("Iteration %d done" % iteration)
+            logger.info("Iteration %d done" % iteration)
 
             # reporting
             dict_to_sacred(ex, results, iteration)
@@ -210,6 +236,7 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False
             config[k] = v
 
     if verbose:
+        logging.basicConfig(level=logging.INFO)
         print("Template config")
         print(config)
         
@@ -226,6 +253,7 @@ def run_tune(config_name=None, config_override=None, tmp_dir=None, verbose=False
         train_one_with_sacred,
         config=config,
         **config['_call'],
+        fail_fast=True,
     )
 
 

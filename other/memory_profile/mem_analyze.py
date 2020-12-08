@@ -12,10 +12,18 @@ parser = argparse.ArgumentParser(description="Visualize recorded memory data")
 parser.add_argument('--input', type=str, help="input file (from mem_profile.py)", required=False, default=None)
 parser.add_argument('--max_lines', type=int, help="Maximal number of lines to read", default=-1, required=False)
 parser.add_argument('--customize', help="Select which processes to show", action="store_true")
+parser.add_argument('--subtract', help='Subtract the baseline (memory at start)', action="store_true")
+parser.add_argument('--track', help="Override the default tracking (ray)", action='append', required=False, default=[])
 
 
 prefixes = ["ray::ImplicitFunc", "ray::RolloutWorker"]
 args = parser.parse_args()
+
+if args.track:
+    prefixes = args.track
+
+if not args.customize:
+    print("Tracking", prefixes)
 
 input_file = args.input
 if args.input is None:
@@ -74,11 +82,19 @@ for line in get_lines():
 
 names = {pid: p[-1]['name'] for pid, p in processes.items()}
 
+if args.subtract:
+    for _, p in processes.items():
+        values = [x['total_mem'] for x in p if x['total_mem'] > 0]
+
+        for line in p:
+            if values:
+                line['total_mem'] -= min(values)
+
 plt.figure(figsize=(10, 10))
 plt.title(f"Memory usage for {input_file}")
 for pid, p in processes.items():
     plt.plot([x['timestep'] for x in processes[pid]],
-        [x['mem_info']['rss'] for x in processes[pid]], label=names[pid])
+        [x['total_mem'] for x in processes[pid]], label=names[pid])
 plt.legend()
 plt.xlabel('time')
 plt.ylabel('Mem, bytes')

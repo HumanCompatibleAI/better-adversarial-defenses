@@ -5,7 +5,7 @@ import shutil
 from IPython.display import display, FileLink
 import os
 from os.path import expanduser
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import json
 import numbers
 import numpy as np
